@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense FSM</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="ui-layer">
+        <div id="hud" class="hidden">
+            <div class="stat">Health: <span id="health-display">100</span></div>
+            <div class="stat">Gold: <span id="gold-display">50</span></div>
+            <div class="stat">Wave: <span id="wave-display">1</span></div>
+            <div class="stat">Score: <span id="score-display">0</span></div>
+        </div>
+
+        <div id="start-screen" class="screen">
+            <h1>Tower Defense FSM</h1>
+            <p>Defend the base from the smart enemies!</p>
+            <button id="start-btn" class="btn">Play Game</button>
+            <div class="controls-hint">
+                <p>Controls: Mouse to place towers, ESC to pause</p>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden">
+            <h1>Game Over</h1>
+            <p>Score: <span id="final-score">0</span></p>
+            <button id="restart-btn" class="btn">Play Again</button>
+            <button id="menu-btn" class="btn" style="margin-top: 10px; background-color: #2196F3;">Main Menu</button>
+        </div>
+
+        <div id="pause-screen" class="screen hidden">
+            <h1>Paused</h1>
+            <button id="resume-btn" class="btn">Resume</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Scripts -->
+    <script src="js/input.js"></script>
+    <script src="js/projectile.js"></script>
+    <script src="js/fsm.js"></script>
+    <script src="js/enemy.js"></script>
+    <script src="js/tower.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
