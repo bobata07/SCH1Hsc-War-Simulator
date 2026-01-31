@@ -49,13 +49,11 @@ class Game {
             }
         };
 
-        window.addEventListener('mousedown', (e) => {
-            if (e.target !== this.canvas) return;
+        this.canvas.addEventListener('mousedown', (e) => {
             handleInput(e.clientX, e.clientY);
         });
 
-        window.addEventListener('touchstart', (e) => {
-            if (e.target !== this.canvas) return;
+        this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault(); // Stop scrolling
             const touch = e.changedTouches[0];
             handleInput(touch.clientX, touch.clientY);
