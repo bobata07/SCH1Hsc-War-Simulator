@@ -9,6 +9,7 @@ class Tower {
         this.fireRate = 30; // Frames between shots
         this.color = 'blue';
         this.projectiles = [];
+        this.shootSound = new Audio('assets/sounds/shotgun-shot-sound-effect.mp3');
     }
 
     update(enemies) {
@@ -49,6 +50,7 @@ class Tower {
 
     shoot(target) {
         this.projectiles.push(new Projectile(this.x, this.y, target));
+        this.shootSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
     }
 
     draw(ctx) {
