@@ -24,9 +24,11 @@ class Game {
         this.snipers = [];
         this.artilleryUnits = [];
         this.rocketStations = [];
+        this.nuclearLaunchers = [];
         this.enemyArtilleryUnits = [];
         this.enemySnipers = [];
         this.selectedUnitType = 'tower';
+        this.awaitingNukeTarget = false;
         this.maxFriendlySoldiers = 120;
         this.maxEnemySoldiers = 140;
         this.maxEnemyArtillery = 30;
@@ -48,6 +50,10 @@ class Game {
         // Input Logic for Unit Placement
         const handleInput = (x, y) => {
             if (!this.isPlaying || this.isPaused) return;
+            if (this.awaitingNukeTarget) {
+                this.launchNukeAt(x, y);
+                return;
+            }
 
             if (this.selectedUnitType === 'tower') {
                 if (this.gold >= 50) {
@@ -102,6 +108,13 @@ class Game {
                 if (this.gold >= 140) {
                     this.rocketStations.push(new RocketStation(x, y));
                     this.gold -= 140;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'nuclear-launcher') {
+                if (this.gold >= 400) {
+                    this.nuclearLaunchers.push(new NuclearLauncher(x, y));
+                    this.gold -= 400;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -276,8 +289,12 @@ class Game {
         this.artilleryUnits = this.artilleryUnits.filter(a => !a.markedForDeletion);
 
         // Update Rocket Stations
-        this.rocketStations.forEach(r => r.update());
+        this.rocketStations.forEach(r => r.update(this.enemyArtilleryUnits));
         this.rocketStations = this.rocketStations.filter(r => !r.markedForDeletion);
+
+        // Update Nuclear Launchers
+        this.nuclearLaunchers.forEach(launcher => launcher.update(() => this.detonateNuke()));
+        this.nuclearLaunchers = this.nuclearLaunchers.filter(launcher => !launcher.markedForDeletion);
     }
 
     draw() {
@@ -295,6 +312,7 @@ class Game {
         this.snipers.forEach(s => s.draw(this.ctx));
         this.artilleryUnits.forEach(a => a.draw(this.ctx));
         this.rocketStations.forEach(r => r.draw(this.ctx));
+        this.nuclearLaunchers.forEach(n => n.draw(this.ctx));
     }
 
     updateHUD() {
@@ -345,6 +363,48 @@ class Game {
             }
         });
     }
+
+    armNukeLaunch() {
+        if (!this.nuclearLaunchers.length || this.isPaused || !this.isPlaying) return;
+        this.awaitingNukeTarget = true;
+        document.getElementById('btn-launch-nuke').textContent = 'Click Ground';
+    }
+
+    launchNukeAt(x, y) {
+        this.awaitingNukeTarget = false;
+        document.getElementById('btn-launch-nuke').textContent = 'Launch Nuke';
+
+        if (!this.nuclearLaunchers.length) return;
+
+        let closest = null;
+        let minDist = Infinity;
+        for (const launcher of this.nuclearLaunchers) {
+            const dist = Math.hypot(launcher.x - x, launcher.y - y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = launcher;
+            }
+        }
+
+        if (closest) {
+            closest.launchAt(x, y);
+        }
+    }
+
+    detonateNuke() {
+        this.enemies.forEach(enemy => {
+            enemy.markedForDeletion = true;
+            enemy.health = 0;
+        });
+        this.enemyArtilleryUnits.forEach(unit => {
+            unit.markedForDeletion = true;
+            unit.health = 0;
+        });
+        this.enemySnipers.forEach(unit => {
+            unit.markedForDeletion = true;
+            unit.health = 0;
+        });
+    }
 }
 
 
@@ -387,4 +447,6 @@ window.addEventListener('load', () => {
     document.getElementById('btn-artillery').addEventListener('click', () => game.setUnitType('artillery'));
     document.getElementById('btn-rocket-station').addEventListener('click', () => game.setUnitType('rocket-station'));
     document.getElementById('btn-launch-rockets').addEventListener('click', () => game.launchRockets());
+    document.getElementById('btn-nuclear-launcher').addEventListener('click', () => game.setUnitType('nuclear-launcher'));
+    document.getElementById('btn-launch-nuke').addEventListener('click', () => game.armNukeLaunch());
 });

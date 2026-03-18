@@ -4,14 +4,26 @@ class RocketStation {
         this.y = y;
         this.maxHealth = 120;
         this.health = this.maxHealth;
+        this.cooldown = 0;
+        this.fireRate = 220;
         this.markedForDeletion = false;
         this.projectiles = [];
         this.rocketSound = new Audio('assets/sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
     }
 
-    update() {
+    update(enemyArtilleryUnits) {
+        if (this.cooldown > 0) this.cooldown--;
+
         this.projectiles.forEach(projectile => projectile.update());
         this.projectiles = this.projectiles.filter(projectile => !projectile.markedForDeletion);
+
+        if (this.cooldown <= 0) {
+            const target = this.findTarget(enemyArtilleryUnits);
+            if (target) {
+                this.launch(target);
+                this.cooldown = this.fireRate;
+            }
+        }
     }
 
     launch(target) {
@@ -22,6 +34,21 @@ class RocketStation {
         rocketSound.currentTime = 0;
         rocketSound.play().catch(e => console.log("Audio play failed:", e));
         return true;
+    }
+
+    findTarget(enemyArtilleryUnits) {
+        let closest = null;
+        let minDist = Infinity;
+
+        for (const target of enemyArtilleryUnits) {
+            const dist = Math.hypot(target.x - this.x, target.y - this.y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = target;
+            }
+        }
+
+        return closest;
     }
 
     takeDamage(amount) {
