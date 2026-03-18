@@ -2,25 +2,21 @@ class Soldier {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.spawnX = x;
-        this.spawnY = y;
         this.maxHealth = 100;
         this.health = this.maxHealth;
         this.range = 100;
-        this.visionRange = 180;
+        this.visionRange = 1000;
         this.cooldown = 0;
         this.fireRate = 20;
-        this.moveSpeed = 1.6;
+        this.moveSpeed = 2.4;
         this.color = 'green';
         this.radius = 10;
         this.markedForDeletion = false;
         this.projectiles = [];
         this.shootSound = new Audio('assets/sounds/shotgun-shot-sound-effect.mp3');
-        this.patrolRadius = 80;
-        this.patrolTarget = this.createPatrolTarget();
     }
 
-    update(enemies) {
+    update(enemies, fieldWidth, fieldHeight) {
         if (this.cooldown > 0) this.cooldown--;
 
         this.projectiles.forEach(p => p.update());
@@ -30,8 +26,11 @@ class Soldier {
         if (attackTarget) {
             this.moveToward(attackTarget.x, attackTarget.y, this.range - 12);
         } else {
-            this.advancePatrol();
+            this.x += this.moveSpeed;
         }
+
+        this.x = Math.max(this.radius, Math.min(fieldWidth - this.radius, this.x));
+        this.y = Math.max(this.radius, Math.min(fieldHeight - this.radius, this.y));
 
         if (this.cooldown <= 0) {
             const shootTarget = this.findTarget(enemies, this.range);
@@ -66,24 +65,6 @@ class Soldier {
         shotSound.play().catch(e => console.log("Audio play failed:", e));
     }
 
-    createPatrolTarget() {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 20 + Math.random() * (this.patrolRadius - 20);
-
-        return {
-            x: this.spawnX + Math.cos(angle) * distance,
-            y: this.spawnY + Math.sin(angle) * distance
-        };
-    }
-
-    advancePatrol() {
-        this.moveToward(this.patrolTarget.x, this.patrolTarget.y, 2);
-
-        if (Math.hypot(this.patrolTarget.x - this.x, this.patrolTarget.y - this.y) < 6) {
-            this.patrolTarget = this.createPatrolTarget();
-        }
-    }
-
     moveToward(targetX, targetY, stopDistance = 0) {
         const dx = targetX - this.x;
         const dy = targetY - this.y;
@@ -105,11 +86,6 @@ class Soldier {
     }
 
     draw(ctx) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
-        ctx.stroke();
-
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);

@@ -8,8 +8,11 @@ class Sniper {
         this.aimFrames = 18;
         this.aimCountdown = 0;
         this.target = null;
+        this.maxHealth = 90;
+        this.health = this.maxHealth;
         this.color = 'orange';
         this.projectiles = [];
+        this.markedForDeletion = false;
         this.shootSound = new Audio('assets/sounds/shotgun-shot-sound-effect.mp3');
     }
 
@@ -70,6 +73,14 @@ class Sniper {
         return Math.hypot(target.x - this.x, target.y - this.y);
     }
 
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.markedForDeletion = true;
+            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+        }
+    }
+
     draw(ctx) {
         if (this.aimCountdown > 0 && this.target && !this.target.markedForDeletion) {
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
@@ -89,6 +100,11 @@ class Sniper {
         ctx.beginPath();
         ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.fillStyle = 'black';
+        ctx.fillRect(this.x - 15, this.y - 24, 30, 4);
+        ctx.fillStyle = '#7ad36b';
+        ctx.fillRect(this.x - 15, this.y - 24, 30 * (this.health / this.maxHealth), 4);
 
         ctx.fillStyle = '#5b2d00';
         ctx.fillRect(this.x - 4, this.y - 18, 8, 14);

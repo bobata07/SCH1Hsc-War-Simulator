@@ -5,40 +5,28 @@ class Artillery {
         this.range = 460;
         this.cooldown = 0;
         this.fireRate = 160;
-        this.aimFrames = 28;
-        this.aimCountdown = 0;
-        this.target = null;
+        this.maxHealth = 140;
+        this.health = this.maxHealth;
+        this.laserFrames = 0;
+        this.laserTarget = null;
         this.color = '#8b7d6b';
         this.projectiles = [];
+        this.markedForDeletion = false;
         this.shootSound = new Audio('assets/sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
     }
 
     update(enemies) {
         if (this.cooldown > 0) this.cooldown--;
+        if (this.laserFrames > 0) this.laserFrames--;
 
         this.projectiles.forEach(projectile => projectile.update());
         this.projectiles = this.projectiles.filter(projectile => !projectile.markedForDeletion);
 
-        if (this.aimCountdown > 0) {
-            if (!this.target || this.target.markedForDeletion || this.distanceTo(this.target) > this.range) {
-                this.aimCountdown = 0;
-                this.target = null;
-                return;
-            }
-
-            this.aimCountdown--;
-            if (this.aimCountdown === 0) {
-                this.shoot(this.target);
-                this.cooldown = this.fireRate;
-            }
-            return;
-        }
-
         if (this.cooldown <= 0) {
             const target = this.findTarget(enemies);
             if (target) {
-                this.target = target;
-                this.aimCountdown = this.aimFrames;
+                this.shoot(target);
+                this.cooldown = this.fireRate;
             }
         }
     }
@@ -59,24 +47,36 @@ class Artillery {
     }
 
     shoot(target) {
-        this.projectiles.push(new Projectile(this.x, this.y, target, 8, 55, '#c97c1a', 6));
+        this.laserTarget = { x: target.x, y: target.y };
+        this.laserFrames = 8;
+        this.projectiles.push(new Projectile(this.x, this.y, target, 8, 55, '#c97c1a', 7, {
+            instantHit: true,
+            displayFrames: 8
+        }));
         const shotSound = this.shootSound.cloneNode();
         shotSound.currentTime = 0;
         shotSound.play().catch(e => console.log("Audio play failed:", e));
-        this.target = null;
     }
 
     distanceTo(target) {
         return Math.hypot(target.x - this.x, target.y - this.y);
     }
 
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.markedForDeletion = true;
+            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+        }
+    }
+
     draw(ctx) {
-        if (this.aimCountdown > 0 && this.target && !this.target.markedForDeletion) {
+        if (this.laserFrames > 0 && this.laserTarget) {
             ctx.strokeStyle = 'rgba(255, 120, 0, 0.8)';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.moveTo(this.x, this.y);
-            ctx.lineTo(this.target.x, this.target.y);
+            ctx.lineTo(this.laserTarget.x, this.laserTarget.y);
             ctx.stroke();
         }
 
@@ -89,6 +89,11 @@ class Artillery {
         ctx.fillRect(this.x - 16, this.y - 12, 32, 24);
         ctx.fillStyle = '#4a4339';
         ctx.fillRect(this.x - 5, this.y - 22, 10, 16);
+
+        ctx.fillStyle = 'black';
+        ctx.fillRect(this.x - 18, this.y - 24, 36, 4);
+        ctx.fillStyle = '#7ad36b';
+        ctx.fillRect(this.x - 18, this.y - 24, 36 * (this.health / this.maxHealth), 4);
 
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }

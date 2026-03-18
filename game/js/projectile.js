@@ -1,5 +1,5 @@
 class Projectile {
-    constructor(x, y, target, speed = 5, damage = 10, color = 'yellow', radius = 5) {
+    constructor(x, y, target, speed = 5, damage = 10, color = 'yellow', radius = 5, effects = {}) {
         this.x = x;
         this.y = y;
         this.target = target;
@@ -7,10 +7,28 @@ class Projectile {
         this.damage = damage;
         this.color = color;
         this.radius = radius;
+        this.instantHit = effects.instantHit || false;
+        this.displayFrames = effects.displayFrames || 0;
         this.markedForDeletion = false;
+
+        if (this.instantHit && this.target && !this.target.markedForDeletion) {
+            this.x = this.target.x;
+            this.y = this.target.y;
+            this.hitTarget();
+            this.markedForDeletion = false;
+        }
     }
 
     update() {
+        if (this.instantHit) {
+            if (this.displayFrames > 0) {
+                this.displayFrames--;
+            } else {
+                this.markedForDeletion = true;
+            }
+            return;
+        }
+
         if (!this.target || this.target.markedForDeletion) {
             this.markedForDeletion = true;
             return;
@@ -31,7 +49,7 @@ class Projectile {
 
     hitTarget() {
         this.target.takeDamage(this.damage);
-        this.markedForDeletion = true;
+        this.markedForDeletion = !this.instantHit;
     }
 
     draw(ctx) {

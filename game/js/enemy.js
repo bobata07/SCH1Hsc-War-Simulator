@@ -20,13 +20,13 @@ class Enemy {
         this.walkTarget = this.createWalkTarget();
     }
 
-    update(playerSoldiers, fieldWidth, fieldHeight) {
+    update(playerTargets, fieldWidth, fieldHeight) {
         if (this.cooldown > 0) this.cooldown--;
 
         this.projectiles.forEach(projectile => projectile.update());
         this.projectiles = this.projectiles.filter(projectile => !projectile.markedForDeletion);
 
-        const target = this.findTarget(playerSoldiers, this.visionRange);
+        const target = this.findTarget(playerTargets, this.visionRange);
         if (target) {
             this.moveToward(target.x, target.y, this.range - 10);
         } else {
@@ -34,7 +34,7 @@ class Enemy {
         }
 
         if (this.cooldown <= 0) {
-            const shootTarget = this.findTarget(playerSoldiers, this.range);
+            const shootTarget = this.findTarget(playerTargets, this.range);
             if (shootTarget) {
                 this.shoot(shootTarget);
                 this.cooldown = this.fireRate;
