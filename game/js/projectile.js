@@ -1,10 +1,12 @@
 class Projectile {
-    constructor(x, y, target) {
+    constructor(x, y, target, speed = 5, damage = 10, color = 'yellow', radius = 5) {
         this.x = x;
         this.y = y;
         this.target = target;
-        this.speed = 5;
-        this.damage = 10;
+        this.speed = speed;
+        this.damage = damage;
+        this.color = color;
+        this.radius = radius;
         this.markedForDeletion = false;
     }
 
@@ -33,9 +35,9 @@ class Projectile {
     }
 
     draw(ctx) {
-        ctx.fillStyle = 'yellow';
+        ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
     }
 }

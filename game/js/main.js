@@ -8,28 +8,19 @@ class Game {
         // Game State
         this.lastTime = 0;
         this.isPlaying = false;
+        this.isPaused = false;
         this.score = 0;
-        //this.gold = 100;
         this.gold = 1000;
         this.lives = 20;
         this.wave = 1;
 
         // Entities
         this.enemies = [];
-        this.enemies = [];
         this.towers = [];
         this.soldiers = [];
-        this.selectedUnitType = 'tower'; // 'tower' or 'soldier'
-        this.path = [
-            { x: 0, y: 100 },
-            { x: 200, y: 100 },
-            { x: 200, y: 400 },
-            { x: 600, y: 400 },
-            { x: 600, y: 200 },
-            { x: 900, y: 200 },
-            { x: 900, y: 600 },
-            { x: 1200, y: 600 } // End point
-        ];
+        this.snipers = [];
+        this.artilleryUnits = [];
+        this.selectedUnitType = 'tower';
 
         // Wave Logic
         this.spawnTimer = 0;
@@ -43,7 +34,7 @@ class Game {
 
         // Input Logic for Unit Placement
         const handleInput = (x, y) => {
-            if (!this.isPlaying) return;
+            if (!this.isPlaying || this.isPaused) return;
 
             if (this.selectedUnitType === 'tower') {
                 if (this.gold >= 50) {
@@ -56,6 +47,20 @@ class Game {
                 if (this.gold >= 30) {
                     this.soldiers.push(new Soldier(x, y));
                     this.gold -= 30;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'sniper') {
+                if (this.gold >= 80) {
+                    this.snipers.push(new Sniper(x, y));
+                    this.gold -= 80;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'artillery') {
+                if (this.gold >= 120) {
+                    this.artilleryUnits.push(new Artillery(x, y));
+                    this.gold -= 120;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -77,6 +82,12 @@ class Game {
         // Resize logic
         window.addEventListener('resize', () => this.resize());
         this.resize();
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isPlaying) {
+                this.togglePause();
+            }
+        });
 
         // Bind rendering
         this.loop = this.loop.bind(this);
@@ -100,7 +111,9 @@ class Game {
         const deltaTime = currentTime - this.lastTime;
         this.lastTime = currentTime;
 
-        this.update(deltaTime);
+        if (!this.isPaused) {
+            this.update(deltaTime);
+        }
         this.draw();
 
         requestAnimationFrame(this.loop);
@@ -111,7 +124,7 @@ class Game {
         if (this.enemiesToSpawn > 0) {
             this.spawnTimer += deltaTime;
             if (this.spawnTimer > 1000) { // Spawn every second
-                this.enemies.push(new Enemy(this.path));
+                this.enemies.push(new Enemy(this.canvas.width, this.canvas.height));
                 this.enemiesToSpawn--;
                 this.spawnTimer = 0;
             }
@@ -124,23 +137,17 @@ class Game {
         }
 
         // Update Enemies
-        this.enemies.forEach(e => e.update());
+        this.enemies.forEach(e => e.update(this.soldiers, this.canvas.width, this.canvas.height));
 
-        // Check for base reach or death
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
 
-            // Check if reached end of path (handled in Enemy class via markedForDeletion)
-            // But we need to distinguish between died and reached base.
-            // For now, let's just check position
-            const lastPoint = this.path[this.path.length - 1];
-            const distToEnd = Math.hypot(e.x - lastPoint.x, e.y - lastPoint.y);
-
-            if (distToEnd < 10) {
-                this.lives = 0; // Instant death
-                e.markedForDeletion = true;
+            if (e.reachedBase) {
+                this.lives--;
                 this.updateHUD();
-                this.gameOver();
+                if (this.lives <= 0) {
+                    this.gameOver();
+                }
             }
 
             if (e.markedForDeletion) {
@@ -159,29 +166,24 @@ class Game {
 
         // Update Soldiers
         this.soldiers.forEach(s => s.update(this.enemies));
+        this.soldiers = this.soldiers.filter(s => !s.markedForDeletion);
+
+        // Update Snipers
+        this.snipers.forEach(s => s.update(this.enemies));
+
+        // Update Artillery
+        this.artilleryUnits.forEach(a => a.update(this.enemies));
     }
 
     draw() {
-        // Clear screen
         this.ctx.fillStyle = '#222';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw Path
-        this.ctx.strokeStyle = '#555';
-        this.ctx.lineWidth = 40;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.path[0].x, this.path[0].y);
-        for (let i = 1; i < this.path.length; i++) {
-            this.ctx.lineTo(this.path[i].x, this.path[i].y);
-        }
-        this.ctx.stroke();
-
-        // Draw Entities
         this.enemies.forEach(e => e.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
         this.soldiers.forEach(s => s.draw(this.ctx));
+        this.snipers.forEach(s => s.draw(this.ctx));
+        this.artilleryUnits.forEach(a => a.draw(this.ctx));
     }
 
     updateHUD() {
@@ -192,19 +194,24 @@ class Game {
     }
 
     gameOver() {
-        // this.isPlaying = false; // Optional, let's keep it running for effect or stop. Terminate for now.
         this.isPlaying = false;
+        this.isPaused = false;
         document.getElementById('game-over-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
         document.getElementById('controls').classList.add('hidden');
+        document.getElementById('pause-screen').classList.add('hidden');
     }
 
     setUnitType(type) {
         this.selectedUnitType = type;
-        // Visual feedback could be added here or in the UI handler
         document.querySelectorAll('.unit-btn').forEach(btn => btn.classList.remove('selected'));
         document.getElementById(`btn-${type}`).classList.add('selected');
+    }
+
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        document.getElementById('pause-screen').classList.toggle('hidden', !this.isPaused);
     }
 }
 
@@ -213,12 +220,17 @@ class Game {
 window.addEventListener('load', () => {
     const game = new Game();
 
-    // Simple start hook for now
     const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const menuBtn = document.getElementById('menu-btn');
+    const resumeBtn = document.getElementById('resume-btn');
+
     startBtn.addEventListener('click', () => {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
         document.getElementById('controls').classList.remove('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('pause-screen').classList.add('hidden');
         game.start();
     });
 
@@ -226,12 +238,16 @@ window.addEventListener('load', () => {
         location.reload();
     });
 
-    const menuBtn = document.getElementById('menu-btn');
     menuBtn.addEventListener('click', () => {
         location.reload();
     });
 
-    // Unit Selection Hooks
+    resumeBtn.addEventListener('click', () => {
+        game.togglePause();
+    });
+
     document.getElementById('btn-tower').addEventListener('click', () => game.setUnitType('tower'));
     document.getElementById('btn-soldier').addEventListener('click', () => game.setUnitType('soldier'));
+    document.getElementById('btn-sniper').addEventListener('click', () => game.setUnitType('sniper'));
+    document.getElementById('btn-artillery').addEventListener('click', () => game.setUnitType('artillery'));
 });

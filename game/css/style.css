@@ -59,6 +59,41 @@ canvas {
     pointer-events: auto;
 }
 
+#controls {
+    position: absolute;
+    top: 80px;
+    left: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    pointer-events: auto;
+    z-index: 3;
+}
+
+.unit-btn {
+    padding: 10px 16px;
+    font-size: 1rem;
+    cursor: pointer;
+    color: white;
+    background-color: #2f3b46;
+    border: 2px solid transparent;
+    border-radius: 6px;
+}
+
+.unit-btn.selected {
+    background-color: #1f6f3e;
+    border-color: #a8f0ba;
+}
+
+.unit-btn:focus-visible,
+.btn:focus-visible {
+    outline: 3px solid #ffd54a;
+    outline-offset: 2px;
+}
+
 h1 {
     font-size: 4rem;
     margin-bottom: 20px;

@@ -1,101 +1,101 @@
-
-
-class WalkState extends State {
-    constructor() {
-        super('WALK');
-    }
-
-    execute(enemy) {
-        // Simple movement logic towards next waypoint
-        const target = enemy.path[enemy.currentPathIndex];
-        const dx = target.x - enemy.x;
-        const dy = target.y - enemy.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 5) {
-            enemy.currentPathIndex++;
-            if (enemy.currentPathIndex >= enemy.path.length) {
-                enemy.reachBase();
-                return;
-            }
-        }
-
-        enemy.x += (dx / dist) * enemy.speed;
-        enemy.y += (dy / dist) * enemy.speed;
-
-        // Transition Checks
-        if (enemy.health < enemy.maxHealth * 0.2) {
-            enemy.fsm.changeState(new FleeState());
-        }
-        // TODO: check for towers to ATTACK
-    }
-}
-
-class FleeState extends State {
-    constructor() {
-        super('FLEE');
-    }
-
-    execute(enemy) {
-        // Move BACKWARDS along the path
-        if (enemy.currentPathIndex > 0) {
-            const target = enemy.path[enemy.currentPathIndex - 1];
-            const dx = target.x - enemy.x;
-            const dy = target.y - enemy.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            enemy.x += (dx / dist) * (enemy.speed * 1.5); // Flee faster
-            enemy.y += (dy / dist) * (enemy.speed * 1.5);
-
-            if (dist < 5) {
-                enemy.currentPathIndex--;
-            }
-        } else {
-            // Reached start, maybe despawn or heal? For now, just heal and return
-            enemy.health += 0.1;
-            if (enemy.health > enemy.maxHealth * 0.5) {
-                enemy.fsm.changeState(new WalkState());
-            }
-        }
-    }
-}
-
-class DeadState extends State {
-    constructor() {
-        super('DEAD');
-    }
-
-    enter(enemy) {
-        console.log("Enemy Died");
-        enemy.markedForDeletion = true;
-
-        // Play death sound
-        new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
-    }
-}
-
 class Enemy {
-    constructor(path) {
-        this.path = path;
-        this.x = path[0].x;
-        this.y = path[0].y;
-        this.currentPathIndex = 1;
-        this.speed = 2;
+    constructor(width, height) {
+        this.x = width + 30;
+        this.y = 80 + Math.random() * Math.max(120, height - 160);
+        this.spawnX = this.x;
+        this.spawnY = this.y;
+        this.moveSpeed = 1.4;
+        this.range = 95;
+        this.visionRange = 170;
+        this.cooldown = 0;
+        this.fireRate = 24;
         this.maxHealth = 100;
         this.health = this.maxHealth;
         this.radius = 15;
         this.markedForDeletion = false;
+        this.reachedBase = false;
         this.color = 'red';
-
-        this.fsm = new StateMachine(this);
-        this.fsm.changeState(new WalkState());
+        this.projectiles = [];
+        this.shootSound = new Audio('assets/sounds/shotgun-shot-sound-effect.mp3');
+        this.walkTarget = this.createWalkTarget();
     }
 
-    update() {
-        this.fsm.update();
-        // Visual indicator of state
-        if (this.fsm.currentState.name === 'FLEE') this.color = 'purple';
-        else if (this.fsm.currentState.name === 'WALK') this.color = 'red';
+    update(playerSoldiers, fieldWidth, fieldHeight) {
+        if (this.cooldown > 0) this.cooldown--;
+
+        this.projectiles.forEach(projectile => projectile.update());
+        this.projectiles = this.projectiles.filter(projectile => !projectile.markedForDeletion);
+
+        const target = this.findTarget(playerSoldiers, this.visionRange);
+        if (target) {
+            this.moveToward(target.x, target.y, this.range - 10);
+        } else {
+            this.advance(fieldWidth, fieldHeight);
+        }
+
+        if (this.cooldown <= 0) {
+            const shootTarget = this.findTarget(playerSoldiers, this.range);
+            if (shootTarget) {
+                this.shoot(shootTarget);
+                this.cooldown = this.fireRate;
+            }
+        }
+
+        if (this.x < -this.radius) {
+            this.reachedBase = true;
+            this.markedForDeletion = true;
+        }
+    }
+
+    findTarget(soldiers, maxRange) {
+        let closest = null;
+        let minDist = Infinity;
+
+        for (const soldier of soldiers) {
+            const dist = Math.hypot(soldier.x - this.x, soldier.y - this.y);
+            if (dist < maxRange && dist < minDist) {
+                minDist = dist;
+                closest = soldier;
+            }
+        }
+
+        return closest;
+    }
+
+    createWalkTarget() {
+        return {
+            x: this.x - (80 + Math.random() * 120),
+            y: this.spawnY + (Math.random() * 120 - 60)
+        };
+    }
+
+    advance(fieldWidth, fieldHeight) {
+        this.moveToward(this.walkTarget.x, this.walkTarget.y, 2);
+
+        const offVerticalBounds = this.walkTarget.y < 60 || this.walkTarget.y > fieldHeight - 60;
+        if (Math.hypot(this.walkTarget.x - this.x, this.walkTarget.y - this.y) < 8 || offVerticalBounds) {
+            this.walkTarget = this.createWalkTarget();
+            this.walkTarget.y = Math.max(60, Math.min(fieldHeight - 60, this.walkTarget.y));
+        }
+    }
+
+    moveToward(targetX, targetY, stopDistance = 0) {
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist <= stopDistance || dist === 0) return;
+
+        const travel = Math.min(this.moveSpeed, dist - stopDistance);
+        this.x += (dx / dist) * travel;
+        this.y += (dy / dist) * travel;
+    }
+
+    shoot(target) {
+        this.projectiles.push(new Projectile(this.x, this.y, target));
+        const shotSound = this.shootSound.cloneNode();
+        shotSound.currentTime = 0;
+        shotSound.play().catch(e => console.log("Audio play failed:", e));
     }
 
     draw(ctx) {
@@ -104,27 +104,19 @@ class Enemy {
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // State Label
-        ctx.fillStyle = 'white';
-        ctx.font = '10px Arial';
-        ctx.fillText(this.fsm.currentState.name, this.x - 10, this.y - 20);
-
-        // Health Bar
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 15, this.y - 20, 30, 4);
         ctx.fillStyle = 'green';
         ctx.fillRect(this.x - 15, this.y - 20, 30 * (this.health / this.maxHealth), 4);
+
+        this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 
     takeDamage(amount) {
         this.health -= amount;
         if (this.health <= 0) {
-            this.fsm.changeState(new DeadState());
+            this.markedForDeletion = true;
+            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
         }
-    }
-
-    reachBase() {
-        this.markedForDeletion = true;
-        // Logic to damage player base will be handled by Game class checking this flag
     }
 }
