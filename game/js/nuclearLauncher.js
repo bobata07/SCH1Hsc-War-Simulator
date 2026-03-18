@@ -6,7 +6,8 @@ class NuclearLauncher {
         this.health = this.maxHealth;
         this.markedForDeletion = false;
         this.missiles = [];
-        this.launchSound = new Audio('assets/sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
+        this.launchSound = new Audio('assets/sounds/artillery sounds/3-minutes-of-wwii-german-flak-88-firing(1).mp3');
+        this.impactSound = new Audio('assets/sounds/artillery sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
     }
 
     update(onDetonate) {
@@ -19,6 +20,8 @@ class NuclearLauncher {
                 missile.x = missile.targetX;
                 missile.y = missile.targetY;
                 missile.markedForDeletion = true;
+                const impactSound = this.impactSound.cloneNode();
+                impactSound.play().catch(e => console.log("Audio play failed:", e));
                 onDetonate(missile.targetX, missile.targetY);
                 return;
             }

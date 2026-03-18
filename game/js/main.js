@@ -24,16 +24,21 @@ class Game {
         this.enemies = [];
         this.towers = [];
         this.spawnTowers = [];
+        this.tankSpawnTowers = [];
         this.barbedWires = [];
         this.trenches = [];
         this.soldiers = [];
         this.tanks = [];
+        this.bulldozers = [];
         this.snipers = [];
         this.artilleryUnits = [];
+        this.drones = [];
         this.rocketStations = [];
         this.nuclearLaunchers = [];
         this.enemyArtilleryUnits = [];
         this.enemySnipers = [];
+        this.radiationZones = [];
+        this.supplyCrates = [];
         this.selectedUnitType = 'tower';
         this.awaitingNukeTarget = false;
         this.maxFriendlySoldiers = 120;
@@ -45,6 +50,7 @@ class Game {
         this.spawnTimer = 0;
         this.enemyArtilleryTimer = 0;
         this.enemySniperTimer = 0;
+        this.supplyCrateTimer = 0;
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
         this.enemyStrengthMultiplier = 1;
@@ -63,6 +69,10 @@ class Game {
                 return;
             }
 
+            if (this.collectSupplyCrateAt(x, y)) {
+                return;
+            }
+
             if (this.removeOwnedObjectAt(x, y)) {
                 return;
             }
@@ -78,6 +88,13 @@ class Game {
                 if (this.gold >= 90) {
                     this.spawnTowers.push(new SpawnTower(x, y));
                     this.gold -= 90;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'tank-spawn-tower') {
+                if (this.gold >= 220) {
+                    this.tankSpawnTowers.push(new TankSpawnTower(x, y));
+                    this.gold -= 220;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -109,6 +126,13 @@ class Game {
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
+            } else if (this.selectedUnitType === 'bulldozer') {
+                if (this.gold >= 95) {
+                    this.bulldozers.push(new Bulldozer(x, y));
+                    this.gold -= 95;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
             } else if (this.selectedUnitType === 'sniper') {
                 if (this.gold >= 80) {
                     this.snipers.push(new Sniper(x, y));
@@ -120,6 +144,13 @@ class Game {
                 if (this.gold >= 120) {
                     this.artilleryUnits.push(new Artillery(x, y));
                     this.gold -= 120;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'drone') {
+                if (this.gold >= 110) {
+                    this.drones.push(new Drone(x, y));
+                    this.gold -= 110;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -183,6 +214,8 @@ class Game {
         this.enemyDefeated = false;
         this.enemyArtilleryTimer = 0;
         this.enemySniperTimer = 0;
+        this.supplyCrateTimer = 0;
+        this.supplyCrates = [];
         this.updateHUD();
         requestAnimationFrame(this.loop);
     }
@@ -235,6 +268,12 @@ class Game {
             this.enemySniperTimer = 0;
         }
 
+        this.supplyCrateTimer += deltaTime;
+        if (this.supplyCrateTimer >= 20000 && this.supplyCrates.length < 2) {
+            this.supplyCrates.push(new SupplyCrate(this.canvas.width, this.canvas.height));
+            this.supplyCrateTimer = 0;
+        }
+
         const nextWave = Math.floor(this.elapsedTime / 15000) + 1;
         if (nextWave !== this.wave) {
             this.wave = nextWave;
@@ -242,7 +281,20 @@ class Game {
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers];
-        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.snipers, ...this.artilleryUnits, ...this.rocketStations];
+        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.rocketStations];
+
+        this.radiationZones.forEach(zone => {
+            zone.duration -= deltaTime;
+            this.enemies.forEach(enemy => {
+                const dist = Math.hypot(enemy.x - zone.x, enemy.y - zone.y);
+                if (dist <= zone.radius) {
+                    enemy.takeDamage(zone.damagePerSecond * (deltaTime / 1000));
+                }
+            });
+        });
+        this.radiationZones = this.radiationZones.filter(zone => zone.duration > 0);
+        this.supplyCrates.forEach(crate => crate.update(deltaTime));
+        this.supplyCrates = this.supplyCrates.filter(crate => !crate.markedForDeletion);
 
         this.barbedWires.forEach(wire => {
             this.enemies.forEach(enemy => wire.damageEnemy(enemy, deltaTime));
@@ -306,6 +358,7 @@ class Game {
         // Update Towers
         this.towers.forEach(t => t.update(hostileUnits));
         this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers));
+        this.tankSpawnTowers.forEach(t => t.update(deltaTime, this.tanks));
 
         // Update Soldiers
         const friendlyMovers = [...this.soldiers, ...this.tanks];
@@ -317,6 +370,10 @@ class Game {
         this.tanks.forEach(t => t.update(hostileUnits, friendlyMovers, this.canvas.width, this.canvas.height));
         this.tanks = this.tanks.filter(t => !t.markedForDeletion);
 
+        // Update Bulldozers
+        this.bulldozers.forEach(b => b.update(this.radiationZones, this.canvas.width, this.canvas.height));
+        this.bulldozers = this.bulldozers.filter(b => !b.markedForDeletion);
+
         // Update Snipers
         this.snipers.forEach(s => s.update(hostileUnits));
         this.snipers = this.snipers.filter(s => !s.markedForDeletion);
@@ -325,12 +382,16 @@ class Game {
         this.artilleryUnits.forEach(a => a.update(hostileUnits));
         this.artilleryUnits = this.artilleryUnits.filter(a => !a.markedForDeletion);
 
+        // Update Drones
+        this.drones.forEach(d => d.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.drones = this.drones.filter(d => !d.markedForDeletion);
+
         // Update Rocket Stations
         this.rocketStations.forEach(r => r.update(this.enemyArtilleryUnits));
         this.rocketStations = this.rocketStations.filter(r => !r.markedForDeletion);
 
         // Update Nuclear Launchers
-        this.nuclearLaunchers.forEach(launcher => launcher.update(() => this.detonateNuke()));
+        this.nuclearLaunchers.forEach(launcher => launcher.update((x, y) => this.detonateNuke(x, y)));
         this.nuclearLaunchers = this.nuclearLaunchers.filter(launcher => !launcher.markedForDeletion);
     }
 
@@ -341,14 +402,19 @@ class Game {
         this.enemies.forEach(e => e.draw(this.ctx));
         this.enemyArtilleryUnits.forEach(e => e.draw(this.ctx));
         this.enemySnipers.forEach(e => e.draw(this.ctx));
+        this.radiationZones.forEach(zone => this.drawRadiationZone(zone));
+        this.supplyCrates.forEach(crate => crate.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
         this.spawnTowers.forEach(t => t.draw(this.ctx));
+        this.tankSpawnTowers.forEach(t => t.draw(this.ctx));
         this.barbedWires.forEach(w => w.draw(this.ctx));
         this.trenches.forEach(t => t.draw(this.ctx));
         this.soldiers.forEach(s => s.draw(this.ctx));
         this.tanks.forEach(t => t.draw(this.ctx));
+        this.bulldozers.forEach(b => b.draw(this.ctx));
         this.snipers.forEach(s => s.draw(this.ctx));
         this.artilleryUnits.forEach(a => a.draw(this.ctx));
+        this.drones.forEach(d => d.draw(this.ctx));
         this.rocketStations.forEach(r => r.draw(this.ctx));
         this.nuclearLaunchers.forEach(n => n.draw(this.ctx));
     }
@@ -358,6 +424,26 @@ class Game {
         document.getElementById('gold-display').innerText = this.gold;
         document.getElementById('wave-display').innerText = this.wave;
         document.getElementById('score-display').innerText = this.score;
+    }
+
+    drawRadiationZone(zone) {
+        const pulse = 0.82 + (Math.sin(performance.now() / 140) * 0.08);
+
+        this.ctx.fillStyle = 'rgba(78, 255, 83, 0.18)';
+        this.ctx.beginPath();
+        this.ctx.arc(zone.x, zone.y, zone.radius * pulse, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        this.ctx.strokeStyle = 'rgba(116, 255, 97, 0.9)';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.arc(zone.x, zone.y, zone.radius * pulse, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = 'rgba(174, 255, 132, 0.95)';
+        this.ctx.font = 'bold 22px Segoe UI';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('RAD', zone.x, zone.y + 8);
     }
 
     gameOver() {
@@ -504,7 +590,7 @@ class Game {
         }
     }
 
-    detonateNuke() {
+    detonateNuke(x, y) {
         this.enemies.forEach(enemy => {
             enemy.markedForDeletion = true;
             enemy.health = 0;
@@ -517,6 +603,14 @@ class Game {
             unit.markedForDeletion = true;
             unit.health = 0;
         });
+
+        this.radiationZones.push({
+            x,
+            y,
+            radius: 95,
+            duration: 10000,
+            damagePerSecond: 38
+        });
     }
 
     removeOwnedObjectAt(x, y) {
@@ -524,11 +618,14 @@ class Game {
             { list: this.rocketStations, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 36, 36) },
             { list: this.nuclearLaunchers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
             { list: this.artilleryUnits, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 32, 24) },
+            { list: this.drones, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.snipers, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, 12) },
+            { list: this.bulldozers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 44, 28) },
             { list: this.tanks, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 24) },
             { list: this.soldiers, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.barbedWires, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.trenches, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
+            { list: this.tankSpawnTowers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
             { list: this.spawnTowers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 36, 36) },
             { list: this.towers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 30, 30) }
         ];
@@ -539,6 +636,22 @@ class Game {
                     collection.list.splice(i, 1);
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    collectSupplyCrateAt(x, y) {
+        for (let i = this.supplyCrates.length - 1; i >= 0; i--) {
+            const crate = this.supplyCrates[i];
+            if (crate.containsPoint(x, y)) {
+                this.gold += crate.goldValue;
+                this.score += 5;
+                crate.markedForDeletion = true;
+                this.updateHUD();
+                this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                return true;
             }
         }
 
@@ -663,12 +776,15 @@ window.addEventListener('load', () => {
 
     document.getElementById('btn-tower').addEventListener('click', () => setUnitType('tower'));
     document.getElementById('btn-spawn-tower').addEventListener('click', () => setUnitType('spawn-tower'));
+    document.getElementById('btn-tank-spawn-tower').addEventListener('click', () => setUnitType('tank-spawn-tower'));
     document.getElementById('btn-barbed-wire').addEventListener('click', () => setUnitType('barbed-wire'));
     document.getElementById('btn-trench').addEventListener('click', () => setUnitType('trench'));
     document.getElementById('btn-soldier').addEventListener('click', () => setUnitType('soldier'));
     document.getElementById('btn-tank').addEventListener('click', () => setUnitType('tank'));
+    document.getElementById('btn-bulldozer').addEventListener('click', () => setUnitType('bulldozer'));
     document.getElementById('btn-sniper').addEventListener('click', () => setUnitType('sniper'));
     document.getElementById('btn-artillery').addEventListener('click', () => setUnitType('artillery'));
+    document.getElementById('btn-drone').addEventListener('click', () => setUnitType('drone'));
     document.getElementById('btn-rocket-station').addEventListener('click', () => setUnitType('rocket-station'));
     document.getElementById('btn-launch-rockets').addEventListener('click', () => game.launchRockets());
     document.getElementById('btn-nuclear-launcher').addEventListener('click', () => setUnitType('nuclear-launcher'));
