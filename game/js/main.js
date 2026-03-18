@@ -16,7 +16,10 @@ class Game {
 
         // Entities
         this.enemies = [];
+        this.enemies = [];
         this.towers = [];
+        this.soldiers = [];
+        this.selectedUnitType = 'tower'; // 'tower' or 'soldier'
         this.path = [
             { x: 0, y: 100 },
             { x: 200, y: 100 },
@@ -38,14 +41,24 @@ class Game {
         // Audio
         this.buildSound = new Audio('assets/sounds/tower_place_construction.wav');
 
-        // Input Logic for Tower Placement
+        // Input Logic for Unit Placement
         const handleInput = (x, y) => {
             if (!this.isPlaying) return;
-            if (this.gold >= 50) {
-                this.towers.push(new Tower(x, y));
-                this.gold -= 50;
-                this.updateHUD();
-                this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+
+            if (this.selectedUnitType === 'tower') {
+                if (this.gold >= 50) {
+                    this.towers.push(new Tower(x, y));
+                    this.gold -= 50;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'soldier') {
+                if (this.gold >= 30) {
+                    this.soldiers.push(new Soldier(x, y));
+                    this.gold -= 30;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
             }
         };
 
@@ -143,6 +156,9 @@ class Game {
 
         // Update Towers
         this.towers.forEach(t => t.update(this.enemies));
+
+        // Update Soldiers
+        this.soldiers.forEach(s => s.update(this.enemies));
     }
 
     draw() {
@@ -165,6 +181,7 @@ class Game {
         // Draw Entities
         this.enemies.forEach(e => e.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
+        this.soldiers.forEach(s => s.draw(this.ctx));
     }
 
     updateHUD() {
@@ -180,8 +197,17 @@ class Game {
         document.getElementById('game-over-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
+        document.getElementById('controls').classList.add('hidden');
+    }
+
+    setUnitType(type) {
+        this.selectedUnitType = type;
+        // Visual feedback could be added here or in the UI handler
+        document.querySelectorAll('.unit-btn').forEach(btn => btn.classList.remove('selected'));
+        document.getElementById(`btn-${type}`).classList.add('selected');
     }
 }
+
 
 // Initialize game on load
 window.addEventListener('load', () => {
@@ -192,6 +218,7 @@ window.addEventListener('load', () => {
     startBtn.addEventListener('click', () => {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('controls').classList.remove('hidden');
         game.start();
     });
 
@@ -203,4 +230,8 @@ window.addEventListener('load', () => {
     menuBtn.addEventListener('click', () => {
         location.reload();
     });
+
+    // Unit Selection Hooks
+    document.getElementById('btn-tower').addEventListener('click', () => game.setUnitType('tower'));
+    document.getElementById('btn-soldier').addEventListener('click', () => game.setUnitType('soldier'));
 });

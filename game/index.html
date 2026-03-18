@@ -17,7 +17,14 @@
             <div class="stat">Score: <span id="score-display">0</span></div>
         </div>
 
+        <div id="controls" class="hidden">
+            <button id="btn-tower" class="unit-btn selected">Tower (50g)</button>
+            <button id="btn-soldier" class="unit-btn">Soldier (30g)</button>
+        </div>
+
         <div id="start-screen" class="screen">
+            <img src="assets/images/logo.jpg" alt="Game Logo"
+                style="max-width: 300px; display: block; margin: 0 auto 20px auto;">
             <h1>Tower Defense FSM</h1>
             <p>Defend the base from the smart enemies!</p>
             <button id="start-btn" class="btn">Play Game</button>
@@ -47,6 +54,7 @@
     <script src="js/fsm.js"></script>
     <script src="js/enemy.js"></script>
     <script src="js/tower.js"></script>
+    <script src="js/soldier.js"></script>
     <script src="js/main.js"></script>
 </body>
 
