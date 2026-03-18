@@ -18,6 +18,7 @@ class Game {
         this.enemyDefeated = false;
         this.settingsOpen = false;
         this.settingsOpenedWhilePlaying = false;
+        this.mobileControlsOpen = false;
 
         // Entities
         this.enemies = [];
@@ -366,6 +367,7 @@ class Game {
         document.getElementById('final-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
         document.getElementById('hud-actions').classList.add('hidden');
+        document.getElementById('mobile-controls-toggle').classList.add('hidden');
         document.getElementById('controls').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('settings-screen').classList.add('hidden');
@@ -379,6 +381,7 @@ class Game {
         document.getElementById('victory-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
         document.getElementById('hud-actions').classList.add('hidden');
+        document.getElementById('mobile-controls-toggle').classList.add('hidden');
         document.getElementById('controls').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('settings-screen').classList.add('hidden');
@@ -396,6 +399,32 @@ class Game {
         document.getElementById('pause-screen').classList.toggle('hidden', !this.isPaused);
     }
 
+    isMobileLayout() {
+        return window.innerWidth <= 900;
+    }
+
+    updateMobileControlsUI() {
+        const controls = document.getElementById('controls');
+        const mobileToggle = document.getElementById('mobile-controls-toggle');
+
+        if (!this.isPlaying || !this.isMobileLayout()) {
+            controls.classList.remove('mobile-collapsed');
+            mobileToggle.classList.add('hidden');
+            return;
+        }
+
+        mobileToggle.classList.remove('hidden');
+        controls.classList.toggle('mobile-collapsed', !this.mobileControlsOpen);
+        mobileToggle.textContent = this.mobileControlsOpen ? 'Hide Build' : 'Deploy';
+    }
+
+    toggleMobileControls(forceOpen = null) {
+        if (!this.isMobileLayout() || !this.isPlaying) return;
+
+        this.mobileControlsOpen = forceOpen === null ? !this.mobileControlsOpen : forceOpen;
+        this.updateMobileControlsUI();
+    }
+
     openSettings(fromStartScreen = false) {
         this.settingsOpen = true;
         this.settingsOpenedWhilePlaying = this.isPlaying && !fromStartScreen;
@@ -407,6 +436,7 @@ class Game {
             document.getElementById('start-screen').classList.add('hidden');
         }
 
+        document.getElementById('mobile-controls-toggle').classList.add('hidden');
         document.getElementById('settings-screen').classList.remove('hidden');
     }
 
@@ -423,6 +453,7 @@ class Game {
         }
 
         this.settingsOpenedWhilePlaying = false;
+        this.updateMobileControlsUI();
     }
 
     launchRockets() {
@@ -547,6 +578,7 @@ window.addEventListener('load', () => {
     const settingsBackBtn = document.getElementById('settings-back-btn');
     const gameSpeedSelect = document.getElementById('game-speed-select');
     const artillerySoundSelect = document.getElementById('artillery-sound-select');
+    const mobileControlsToggle = document.getElementById('mobile-controls-toggle');
 
     Artillery.setFireSound(artillerySoundSelect.value);
     EnemyArtillery.setFireSound(artillerySoundSelect.value);
@@ -560,6 +592,8 @@ window.addEventListener('load', () => {
         document.getElementById('victory-screen').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('settings-screen').classList.add('hidden');
+        game.mobileControlsOpen = !game.isMobileLayout();
+        game.updateMobileControlsUI();
         game.start();
     });
 
@@ -607,6 +641,10 @@ window.addEventListener('load', () => {
         game.closeSettings();
     });
 
+    mobileControlsToggle.addEventListener('click', () => {
+        game.toggleMobileControls();
+    });
+
     gameSpeedSelect.addEventListener('change', (e) => {
         game.gameSpeed = Number(e.target.value);
     });
@@ -616,16 +654,33 @@ window.addEventListener('load', () => {
         EnemyArtillery.setFireSound(e.target.value);
     });
 
-    document.getElementById('btn-tower').addEventListener('click', () => game.setUnitType('tower'));
-    document.getElementById('btn-spawn-tower').addEventListener('click', () => game.setUnitType('spawn-tower'));
-    document.getElementById('btn-barbed-wire').addEventListener('click', () => game.setUnitType('barbed-wire'));
-    document.getElementById('btn-trench').addEventListener('click', () => game.setUnitType('trench'));
-    document.getElementById('btn-soldier').addEventListener('click', () => game.setUnitType('soldier'));
-    document.getElementById('btn-tank').addEventListener('click', () => game.setUnitType('tank'));
-    document.getElementById('btn-sniper').addEventListener('click', () => game.setUnitType('sniper'));
-    document.getElementById('btn-artillery').addEventListener('click', () => game.setUnitType('artillery'));
-    document.getElementById('btn-rocket-station').addEventListener('click', () => game.setUnitType('rocket-station'));
+    const setUnitType = (type) => {
+        game.setUnitType(type);
+        if (game.isMobileLayout()) {
+            game.toggleMobileControls(false);
+        }
+    };
+
+    document.getElementById('btn-tower').addEventListener('click', () => setUnitType('tower'));
+    document.getElementById('btn-spawn-tower').addEventListener('click', () => setUnitType('spawn-tower'));
+    document.getElementById('btn-barbed-wire').addEventListener('click', () => setUnitType('barbed-wire'));
+    document.getElementById('btn-trench').addEventListener('click', () => setUnitType('trench'));
+    document.getElementById('btn-soldier').addEventListener('click', () => setUnitType('soldier'));
+    document.getElementById('btn-tank').addEventListener('click', () => setUnitType('tank'));
+    document.getElementById('btn-sniper').addEventListener('click', () => setUnitType('sniper'));
+    document.getElementById('btn-artillery').addEventListener('click', () => setUnitType('artillery'));
+    document.getElementById('btn-rocket-station').addEventListener('click', () => setUnitType('rocket-station'));
     document.getElementById('btn-launch-rockets').addEventListener('click', () => game.launchRockets());
-    document.getElementById('btn-nuclear-launcher').addEventListener('click', () => game.setUnitType('nuclear-launcher'));
+    document.getElementById('btn-nuclear-launcher').addEventListener('click', () => setUnitType('nuclear-launcher'));
     document.getElementById('btn-launch-nuke').addEventListener('click', () => game.armNukeLaunch());
+
+    window.addEventListener('resize', () => {
+        if (!game.isPlaying) return;
+
+        if (!game.isMobileLayout()) {
+            game.mobileControlsOpen = true;
+        }
+
+        game.updateMobileControlsUI();
+    });
 });
