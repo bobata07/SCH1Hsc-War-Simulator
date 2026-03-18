@@ -13,12 +13,18 @@ class Game {
         this.gold = 10000000;
         this.lives = 20;
         this.wave = 1;
+        this.gameSpeed = 1;
+        this.enemyResources = 1;
+        this.enemyDefeated = false;
+        this.settingsOpen = false;
+        this.settingsOpenedWhilePlaying = false;
 
         // Entities
         this.enemies = [];
         this.towers = [];
         this.spawnTowers = [];
         this.barbedWires = [];
+        this.trenches = [];
         this.soldiers = [];
         this.tanks = [];
         this.snipers = [];
@@ -40,6 +46,7 @@ class Game {
         this.enemySniperTimer = 0;
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
+        this.enemyStrengthMultiplier = 1;
 
         // Input Handling
         this.input = new InputHandler();
@@ -52,6 +59,10 @@ class Game {
             if (!this.isPlaying || this.isPaused) return;
             if (this.awaitingNukeTarget) {
                 this.launchNukeAt(x, y);
+                return;
+            }
+
+            if (this.removeOwnedObjectAt(x, y)) {
                 return;
             }
 
@@ -73,6 +84,13 @@ class Game {
                 if (this.gold >= 40) {
                     this.barbedWires.push(new BarbedWire(x, y));
                     this.gold -= 40;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'trench') {
+                if (this.gold >= 60) {
+                    this.trenches.push(new Trench(x, y));
+                    this.gold -= 60;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -138,7 +156,9 @@ class Game {
         this.resize();
 
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isPlaying) {
+            if (e.key === 'Escape' && this.settingsOpen) {
+                this.closeSettings();
+            } else if (e.key === 'Escape' && this.isPlaying) {
                 this.togglePause();
             }
         });
@@ -157,6 +177,9 @@ class Game {
         this.lastTime = performance.now();
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
+        this.enemyResources = 1;
+        this.enemyStrengthMultiplier = 1;
+        this.enemyDefeated = false;
         this.enemyArtilleryTimer = 0;
         this.enemySniperTimer = 0;
         this.updateHUD();
@@ -170,7 +193,7 @@ class Game {
         this.lastTime = currentTime;
 
         if (!this.isPaused) {
-            this.update(deltaTime);
+            this.update(deltaTime * this.gameSpeed);
         }
         this.draw();
 
@@ -180,12 +203,15 @@ class Game {
     update(deltaTime) {
         this.elapsedTime += deltaTime;
         this.spawnIntensityLevel = Math.floor(this.elapsedTime / 10000) + 1;
+        this.enemyResources = Math.max(0, 1 - (this.elapsedTime / 120000));
+        this.enemyStrengthMultiplier = Math.max(0.35, this.enemyResources);
 
         // Continuous enemy soldier spawning
         this.spawnTimer += deltaTime;
-        if (this.spawnTimer > 1000 && this.enemies.length < this.maxEnemySoldiers) {
+        if (this.enemyResources > 0 && this.spawnTimer > 1000 && this.enemies.length < this.maxEnemySoldiers) {
             const availableSlots = this.maxEnemySoldiers - this.enemies.length;
-            const spawnCount = Math.min(this.spawnIntensityLevel, availableSlots);
+            const scaledSpawnCount = Math.max(1, Math.ceil(this.spawnIntensityLevel * this.enemyStrengthMultiplier));
+            const spawnCount = Math.min(scaledSpawnCount, availableSlots);
 
             for (let i = 0; i < spawnCount; i++) {
                 this.enemies.push(new Enemy(this.canvas.width, this.canvas.height));
@@ -195,15 +221,15 @@ class Game {
 
         // Enemy artillery now spawns every second
         this.enemyArtilleryTimer += deltaTime;
-        const artilleryInterval = 1000;
-        if (this.enemyArtilleryTimer >= artilleryInterval && this.enemyArtilleryUnits.length < this.maxEnemyArtillery) {
+        const artilleryInterval = 1000 + ((1 - this.enemyStrengthMultiplier) * 4000);
+        if (this.enemyResources > 0 && this.enemyArtilleryTimer >= artilleryInterval && this.enemyArtilleryUnits.length < this.maxEnemyArtillery) {
             this.enemyArtilleryUnits.push(new EnemyArtillery(this.canvas.width, this.canvas.height));
             this.enemyArtilleryTimer = 0;
         }
 
         this.enemySniperTimer += deltaTime;
-        const sniperInterval = Math.max(7000, 18000 - ((this.spawnIntensityLevel - 1) * 900));
-        if (this.enemySniperTimer >= sniperInterval && this.enemySnipers.length < this.maxEnemySnipers) {
+        const sniperInterval = Math.max(9000, (18000 - ((this.spawnIntensityLevel - 1) * 900)) + ((1 - this.enemyStrengthMultiplier) * 6000));
+        if (this.enemyResources > 0 && this.enemySniperTimer >= sniperInterval && this.enemySnipers.length < this.maxEnemySnipers) {
             this.enemySnipers.push(new EnemySniper(this.canvas.width, this.canvas.height));
             this.enemySniperTimer = 0;
         }
@@ -219,6 +245,9 @@ class Game {
 
         this.barbedWires.forEach(wire => {
             this.enemies.forEach(enemy => wire.damageEnemy(enemy, deltaTime));
+        });
+        this.trenches.forEach(trench => {
+            this.enemies.forEach(enemy => trench.applyEffect(enemy, deltaTime));
         });
 
         // Update Enemies
@@ -268,16 +297,23 @@ class Game {
             }
         }
 
+        if (!this.enemyDefeated && this.enemyResources <= 0 && this.enemies.length === 0 && this.enemyArtilleryUnits.length === 0 && this.enemySnipers.length === 0) {
+            this.victory();
+            return;
+        }
+
         // Update Towers
         this.towers.forEach(t => t.update(hostileUnits));
         this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers));
 
         // Update Soldiers
-        this.soldiers.forEach(s => s.update(hostileUnits, this.canvas.width, this.canvas.height));
+        const friendlyMovers = [...this.soldiers, ...this.tanks];
+
+        this.soldiers.forEach(s => s.update(hostileUnits, friendlyMovers, this.canvas.width, this.canvas.height));
         this.soldiers = this.soldiers.filter(s => !s.markedForDeletion);
 
         // Update Tanks
-        this.tanks.forEach(t => t.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.tanks.forEach(t => t.update(hostileUnits, friendlyMovers, this.canvas.width, this.canvas.height));
         this.tanks = this.tanks.filter(t => !t.markedForDeletion);
 
         // Update Snipers
@@ -307,6 +343,7 @@ class Game {
         this.towers.forEach(t => t.draw(this.ctx));
         this.spawnTowers.forEach(t => t.draw(this.ctx));
         this.barbedWires.forEach(w => w.draw(this.ctx));
+        this.trenches.forEach(t => t.draw(this.ctx));
         this.soldiers.forEach(s => s.draw(this.ctx));
         this.tanks.forEach(t => t.draw(this.ctx));
         this.snipers.forEach(s => s.draw(this.ctx));
@@ -328,8 +365,23 @@ class Game {
         document.getElementById('game-over-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
+        document.getElementById('hud-actions').classList.add('hidden');
         document.getElementById('controls').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('settings-screen').classList.add('hidden');
+    }
+
+    victory() {
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.enemyDefeated = true;
+        document.getElementById('victory-screen').classList.remove('hidden');
+        document.getElementById('victory-score').innerText = this.score;
+        document.getElementById('hud').classList.add('hidden');
+        document.getElementById('hud-actions').classList.add('hidden');
+        document.getElementById('controls').classList.add('hidden');
+        document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('settings-screen').classList.add('hidden');
     }
 
     setUnitType(type) {
@@ -339,8 +391,38 @@ class Game {
     }
 
     togglePause() {
+        if (this.settingsOpen || !this.isPlaying) return;
         this.isPaused = !this.isPaused;
         document.getElementById('pause-screen').classList.toggle('hidden', !this.isPaused);
+    }
+
+    openSettings(fromStartScreen = false) {
+        this.settingsOpen = true;
+        this.settingsOpenedWhilePlaying = this.isPlaying && !fromStartScreen;
+
+        if (this.settingsOpenedWhilePlaying) {
+            this.isPaused = true;
+            document.getElementById('pause-screen').classList.add('hidden');
+        } else {
+            document.getElementById('start-screen').classList.add('hidden');
+        }
+
+        document.getElementById('settings-screen').classList.remove('hidden');
+    }
+
+    closeSettings() {
+        if (!this.settingsOpen) return;
+
+        this.settingsOpen = false;
+        document.getElementById('settings-screen').classList.add('hidden');
+
+        if (this.settingsOpenedWhilePlaying) {
+            document.getElementById('pause-screen').classList.remove('hidden');
+        } else if (!this.isPlaying) {
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+
+        this.settingsOpenedWhilePlaying = false;
     }
 
     launchRockets() {
@@ -405,6 +487,45 @@ class Game {
             unit.health = 0;
         });
     }
+
+    removeOwnedObjectAt(x, y) {
+        const removableCollections = [
+            { list: this.rocketStations, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 36, 36) },
+            { list: this.nuclearLaunchers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
+            { list: this.artilleryUnits, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 32, 24) },
+            { list: this.snipers, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, 12) },
+            { list: this.tanks, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 24) },
+            { list: this.soldiers, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
+            { list: this.barbedWires, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
+            { list: this.trenches, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
+            { list: this.spawnTowers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 36, 36) },
+            { list: this.towers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 30, 30) }
+        ];
+
+        for (const collection of removableCollections) {
+            for (let i = collection.list.length - 1; i >= 0; i--) {
+                if (collection.hit(collection.list[i])) {
+                    collection.list.splice(i, 1);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    isCircleHit(clickX, clickY, x, y, radius) {
+        return Math.hypot(clickX - x, clickY - y) <= radius;
+    }
+
+    isRectHit(clickX, clickY, x, y, width, height) {
+        return (
+            clickX >= x - width / 2 &&
+            clickX <= x + width / 2 &&
+            clickY >= y - height / 2 &&
+            clickY <= y + height / 2
+        );
+    }
 }
 
 
@@ -416,13 +537,29 @@ window.addEventListener('load', () => {
     const restartBtn = document.getElementById('restart-btn');
     const menuBtn = document.getElementById('menu-btn');
     const resumeBtn = document.getElementById('resume-btn');
+    const victoryRestartBtn = document.getElementById('victory-restart-btn');
+    const victoryMenuBtn = document.getElementById('victory-menu-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const pauseMenuBtn = document.getElementById('pause-menu-btn');
+    const pauseSettingsBtn = document.getElementById('pause-settings-btn');
+    const startSettingsBtn = document.getElementById('start-settings-btn');
+    const settingsBackBtn = document.getElementById('settings-back-btn');
+    const gameSpeedSelect = document.getElementById('game-speed-select');
+    const artillerySoundSelect = document.getElementById('artillery-sound-select');
+
+    Artillery.setFireSound(artillerySoundSelect.value);
+    EnemyArtillery.setFireSound(artillerySoundSelect.value);
 
     startBtn.addEventListener('click', () => {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('hud-actions').classList.remove('hidden');
         document.getElementById('controls').classList.remove('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('victory-screen').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('settings-screen').classList.add('hidden');
         game.start();
     });
 
@@ -434,13 +571,55 @@ window.addEventListener('load', () => {
         location.reload();
     });
 
+    victoryRestartBtn.addEventListener('click', () => {
+        location.reload();
+    });
+
+    victoryMenuBtn.addEventListener('click', () => {
+        location.reload();
+    });
+
     resumeBtn.addEventListener('click', () => {
         game.togglePause();
+    });
+
+    pauseBtn.addEventListener('click', () => {
+        game.togglePause();
+    });
+
+    settingsBtn.addEventListener('click', () => {
+        game.openSettings();
+    });
+
+    pauseMenuBtn.addEventListener('click', () => {
+        location.reload();
+    });
+
+    pauseSettingsBtn.addEventListener('click', () => {
+        game.openSettings();
+    });
+
+    startSettingsBtn.addEventListener('click', () => {
+        game.openSettings(true);
+    });
+
+    settingsBackBtn.addEventListener('click', () => {
+        game.closeSettings();
+    });
+
+    gameSpeedSelect.addEventListener('change', (e) => {
+        game.gameSpeed = Number(e.target.value);
+    });
+
+    artillerySoundSelect.addEventListener('change', (e) => {
+        Artillery.setFireSound(e.target.value);
+        EnemyArtillery.setFireSound(e.target.value);
     });
 
     document.getElementById('btn-tower').addEventListener('click', () => game.setUnitType('tower'));
     document.getElementById('btn-spawn-tower').addEventListener('click', () => game.setUnitType('spawn-tower'));
     document.getElementById('btn-barbed-wire').addEventListener('click', () => game.setUnitType('barbed-wire'));
+    document.getElementById('btn-trench').addEventListener('click', () => game.setUnitType('trench'));
     document.getElementById('btn-soldier').addEventListener('click', () => game.setUnitType('soldier'));
     document.getElementById('btn-tank').addEventListener('click', () => game.setUnitType('tank'));
     document.getElementById('btn-sniper').addEventListener('click', () => game.setUnitType('sniper'));

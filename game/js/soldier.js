@@ -14,9 +14,12 @@ class Soldier {
         this.markedForDeletion = false;
         this.projectiles = [];
         this.shootSound = new Audio('assets/sounds/shotgun-shot-sound-effect.mp3');
+        this.formationAngle = Math.random() * Math.PI * 2;
+        this.formationDistance = 18 + Math.random() * 34;
+        this.cruiseDrift = (Math.random() - 0.5) * 0.8;
     }
 
-    update(enemies, fieldWidth, fieldHeight) {
+    update(enemies, allies, fieldWidth, fieldHeight) {
         if (this.cooldown > 0) this.cooldown--;
 
         this.projectiles.forEach(p => p.update());
@@ -24,11 +27,14 @@ class Soldier {
 
         const attackTarget = this.findTarget(enemies, this.visionRange);
         if (attackTarget) {
-            this.moveToward(attackTarget.x, attackTarget.y, this.range - 12);
+            const attackPoint = this.getAttackPoint(attackTarget);
+            this.moveToward(attackPoint.x, attackPoint.y, this.range - 12);
         } else {
             this.x += this.moveSpeed;
+            this.y += this.cruiseDrift;
         }
 
+        this.applySeparation(allies);
         this.x = Math.max(this.radius, Math.min(fieldWidth - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(fieldHeight - this.radius, this.y));
 
@@ -63,6 +69,41 @@ class Soldier {
         const shotSound = this.shootSound.cloneNode();
         shotSound.currentTime = 0;
         shotSound.play().catch(e => console.log("Audio play failed:", e));
+    }
+
+    getAttackPoint(target) {
+        return {
+            x: target.x + Math.cos(this.formationAngle) * this.formationDistance,
+            y: target.y + Math.sin(this.formationAngle) * this.formationDistance
+        };
+    }
+
+    applySeparation(allies) {
+        let pushX = 0;
+        let pushY = 0;
+        let neighborCount = 0;
+        const desiredSpacing = this.radius * 3;
+
+        for (const ally of allies) {
+            if (ally === this || ally.markedForDeletion) continue;
+
+            const dx = this.x - ally.x;
+            const dy = this.y - ally.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 0 && dist < desiredSpacing) {
+                const strength = (desiredSpacing - dist) / desiredSpacing;
+                pushX += (dx / dist) * strength;
+                pushY += (dy / dist) * strength;
+                neighborCount++;
+            }
+        }
+
+        if (!neighborCount) return;
+
+        const separationSpeed = 0.9;
+        this.x += (pushX / neighborCount) * separationSpeed;
+        this.y += (pushY / neighborCount) * separationSpeed;
     }
 
     moveToward(targetX, targetY, stopDistance = 0) {

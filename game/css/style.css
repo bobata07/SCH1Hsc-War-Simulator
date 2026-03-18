@@ -23,6 +23,7 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
+    z-index: 10;
     pointer-events: none; /* Let clicks pass through to canvas when possible */
 }
 
@@ -56,6 +57,20 @@ canvas {
     gap: 20px;
     font-size: 1.2rem;
     font-weight: bold;
+    pointer-events: auto;
+}
+
+#hud-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 10px;
+    pointer-events: auto;
+    z-index: 4;
+}
+
+.hud-btn {
     pointer-events: auto;
 }
 
@@ -145,4 +160,36 @@ p {
     margin-top: 40px;
     font-size: 1rem;
     color: #aaa;
+}
+
+.secondary-btn {
+    margin-top: 12px;
+    background-color: #355c7d;
+}
+
+.secondary-btn:hover {
+    background-color: #2d4f6b;
+}
+
+.settings-panel {
+    margin-top: 24px;
+    padding: 16px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 220px;
+    pointer-events: auto;
+}
+
+.settings-panel label {
+    font-size: 1rem;
+}
+
+.settings-panel select {
+    padding: 10px 12px;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: none;
 }

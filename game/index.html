@@ -17,10 +17,16 @@
             <div class="stat">Score: <span id="score-display">0</span></div>
         </div>
 
+        <div id="hud-actions" class="hidden">
+            <button id="pause-btn" class="action-btn hud-btn">Pause</button>
+            <button id="settings-btn" class="action-btn hud-btn">Settings</button>
+        </div>
+
         <div id="controls" class="hidden">
             <button id="btn-tower" class="unit-btn selected">Tower (50g)</button>
             <button id="btn-spawn-tower" class="unit-btn">Spawn Tower (90g)</button>
             <button id="btn-barbed-wire" class="unit-btn">Barbed Wire (40g)</button>
+            <button id="btn-trench" class="unit-btn">Trench (60g)</button>
             <button id="btn-soldier" class="unit-btn">Soldier (30g)</button>
             <button id="btn-tank" class="unit-btn">Tank (150g)</button>
             <button id="btn-sniper" class="unit-btn">Sniper (80g)</button>
@@ -37,6 +43,7 @@
             <h1>Tower Defense FSM</h1>
             <p>Defend the base from the smart enemies!</p>
             <button id="start-btn" class="btn">Play Game</button>
+            <button id="start-settings-btn" class="btn secondary-btn">Settings</button>
             <div class="controls-hint">
                 <p>Controls: Mouse to place towers, ESC to pause</p>
             </div>
@@ -49,9 +56,37 @@
             <button id="menu-btn" class="btn" style="margin-top: 10px; background-color: #2196F3;">Main Menu</button>
         </div>
 
+        <div id="victory-screen" class="screen hidden">
+            <h1>Victory</h1>
+            <p>Score: <span id="victory-score">0</span></p>
+            <button id="victory-restart-btn" class="btn">Play Again</button>
+            <button id="victory-menu-btn" class="btn" style="margin-top: 10px; background-color: #2196F3;">Main Menu</button>
+        </div>
+
         <div id="pause-screen" class="screen hidden">
             <h1>Paused</h1>
             <button id="resume-btn" class="btn">Resume</button>
+            <button id="pause-menu-btn" class="btn" style="margin-top: 10px; background-color: #2196F3;">Main Menu</button>
+            <button id="pause-settings-btn" class="btn secondary-btn">Settings</button>
+        </div>
+
+        <div id="settings-screen" class="screen hidden">
+            <h1>Settings</h1>
+            <div class="settings-panel">
+                <label for="game-speed-select">Game Speed</label>
+                <select id="game-speed-select">
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                </select>
+                <label for="artillery-sound-select">Artillery Sound</label>
+                <select id="artillery-sound-select">
+                    <option value="assets/sounds/artillery sounds/cannon-sound-effect-hd-for-videos-and-games.mp3" selected>Cannon</option>
+                    <option value="assets/sounds/artillery sounds/3-minutes-of-wwii-german-flak-88-firing(1).mp3">Flak 88</option>
+                </select>
+            </div>
+            <button id="settings-back-btn" class="btn">Back</button>
         </div>
     </div>
 
@@ -67,6 +102,7 @@
     <script src="js/tower.js"></script>
     <script src="js/spawnTower.js"></script>
     <script src="js/barbedWire.js"></script>
+    <script src="js/trench.js"></script>
     <script src="js/soldier.js"></script>
     <script src="js/tank.js"></script>
     <script src="js/sniper.js"></script>

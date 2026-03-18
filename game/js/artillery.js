@@ -12,7 +12,6 @@ class Artillery {
         this.color = '#8b7d6b';
         this.projectiles = [];
         this.markedForDeletion = false;
-        this.shootSound = new Audio('assets/sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
     }
 
     update(enemies) {
@@ -53,8 +52,7 @@ class Artillery {
             instantHit: true,
             displayFrames: 8
         }));
-        const shotSound = this.shootSound.cloneNode();
-        shotSound.currentTime = 0;
+        const shotSound = new Audio(Artillery.currentSoundPath);
         shotSound.play().catch(e => console.log("Audio play failed:", e));
     }
 
@@ -98,3 +96,9 @@ class Artillery {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+
+Artillery.currentSoundPath = 'assets/sounds/artillery sounds/cannon-sound-effect-hd-for-videos-and-games.mp3';
+
+Artillery.setFireSound = function (soundPath) {
+    Artillery.currentSoundPath = soundPath;
+};

@@ -12,10 +12,13 @@ class Tank {
         this.radius = 16;
         this.markedForDeletion = false;
         this.projectiles = [];
-        this.shootSound = new Audio('assets/sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
+        this.shootSound = new Audio('assets/sounds/artillery sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
+        this.formationAngle = Math.random() * Math.PI * 2;
+        this.formationDistance = 28 + Math.random() * 46;
+        this.cruiseDrift = (Math.random() - 0.5) * 0.45;
     }
 
-    update(enemies, fieldWidth, fieldHeight) {
+    update(enemies, allies, fieldWidth, fieldHeight) {
         if (this.cooldown > 0) this.cooldown--;
 
         this.projectiles.forEach(projectile => projectile.update());
@@ -23,11 +26,14 @@ class Tank {
 
         const attackTarget = this.findTarget(enemies, this.visionRange);
         if (attackTarget) {
-            this.moveToward(attackTarget.x, attackTarget.y, this.range - 18);
+            const attackPoint = this.getAttackPoint(attackTarget);
+            this.moveToward(attackPoint.x, attackPoint.y, this.range - 18);
         } else {
             this.x += this.moveSpeed;
+            this.y += this.cruiseDrift;
         }
 
+        this.applySeparation(allies);
         this.x = Math.max(this.radius, Math.min(fieldWidth - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(fieldHeight - this.radius, this.y));
 
@@ -65,6 +71,41 @@ class Tank {
         const travel = Math.min(this.moveSpeed, dist - stopDistance);
         this.x += (dx / dist) * travel;
         this.y += (dy / dist) * travel;
+    }
+
+    getAttackPoint(target) {
+        return {
+            x: target.x + Math.cos(this.formationAngle) * this.formationDistance,
+            y: target.y + Math.sin(this.formationAngle) * this.formationDistance
+        };
+    }
+
+    applySeparation(allies) {
+        let pushX = 0;
+        let pushY = 0;
+        let neighborCount = 0;
+        const desiredSpacing = this.radius * 3.2;
+
+        for (const ally of allies) {
+            if (ally === this || ally.markedForDeletion) continue;
+
+            const dx = this.x - ally.x;
+            const dy = this.y - ally.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 0 && dist < desiredSpacing) {
+                const strength = (desiredSpacing - dist) / desiredSpacing;
+                pushX += (dx / dist) * strength;
+                pushY += (dy / dist) * strength;
+                neighborCount++;
+            }
+        }
+
+        if (!neighborCount) return;
+
+        const separationSpeed = 0.7;
+        this.x += (pushX / neighborCount) * separationSpeed;
+        this.y += (pushY / neighborCount) * separationSpeed;
     }
 
     shoot(target) {

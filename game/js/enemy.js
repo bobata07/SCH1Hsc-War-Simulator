@@ -4,7 +4,8 @@ class Enemy {
         this.y = 80 + Math.random() * Math.max(120, height - 160);
         this.spawnX = this.x;
         this.spawnY = this.y;
-        this.moveSpeed = 1.4;
+        this.baseMoveSpeed = 1.4;
+        this.moveSpeed = this.baseMoveSpeed;
         this.range = 95;
         this.visionRange = 170;
         this.cooldown = 0;
@@ -21,6 +22,7 @@ class Enemy {
     }
 
     update(playerTargets, fieldWidth, fieldHeight) {
+        this.moveSpeed = this.baseMoveSpeed;
         if (this.cooldown > 0) this.cooldown--;
 
         this.projectiles.forEach(projectile => projectile.update());
