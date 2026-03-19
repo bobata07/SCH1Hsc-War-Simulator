@@ -11,6 +11,7 @@ class Tank {
         this.moveSpeed = 1.7;
         this.radius = 16;
         this.markedForDeletion = false;
+        this.destroyedAsWreck = false;
         this.projectiles = [];
         this.shootSound = new Audio('assets/sounds/artillery sounds/cannon-sound-effect-hd-for-videos-and-games.mp3');
         this.formationAngle = Math.random() * Math.PI * 2;
@@ -119,6 +120,7 @@ class Tank {
         this.health -= amount * 0.7;
         if (this.health <= 0) {
             this.markedForDeletion = true;
+            this.destroyedAsWreck = true;
             new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
         }
     }

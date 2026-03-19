@@ -15,6 +15,7 @@
             <div class="stat">Gold: <span id="gold-display">50</span></div>
             <div class="stat">Wave: <span id="wave-display">1</span></div>
             <div class="stat">Score: <span id="score-display">0</span></div>
+            <div class="stat">Enemy Resources: <span id="enemy-resources-display">100%</span></div>
         </div>
 
         <div id="hud-actions" class="hidden">
@@ -30,8 +31,11 @@
             <button id="btn-tank-spawn-tower" class="unit-btn">Tank Tower (220g)</button>
             <button id="btn-barbed-wire" class="unit-btn">Barbed Wire (40g)</button>
             <button id="btn-trench" class="unit-btn">Trench (60g)</button>
+            <button id="btn-repair-base" class="unit-btn">Repair Base (130g)</button>
+            <button id="btn-airport" class="unit-btn">Airport (180g)</button>
             <button id="btn-soldier" class="unit-btn">Soldier (30g)</button>
             <button id="btn-tank" class="unit-btn">Tank (150g)</button>
+            <button id="btn-plane" class="unit-btn">Plane (160g)</button>
             <button id="btn-bulldozer" class="unit-btn">Bulldozer (95g)</button>
             <button id="btn-sniper" class="unit-btn">Sniper (80g)</button>
             <button id="btn-artillery" class="unit-btn">Artillery (120g)</button>
@@ -48,6 +52,7 @@
             <h1>War Simulator</h1>
             <p>Defend the base from the smart enemies!</p>
             <button id="start-btn" class="btn">Play Game</button>
+            <button id="custom-map-btn" class="btn secondary-btn">Make a custom map.</button>
             <button id="start-settings-btn" class="btn secondary-btn">Settings</button>
             <div class="controls-hint">
                 <p>Controls: Mouse to place towers, ESC to pause</p>
@@ -104,13 +109,19 @@
     <script src="js/enemy.js"></script>
     <script src="js/enemyArtillery.js"></script>
     <script src="js/enemySniper.js"></script>
+    <script src="js/enemyTank.js"></script>
+    <script src="js/enemyPlane.js"></script>
     <script src="js/tower.js"></script>
     <script src="js/spawnTower.js"></script>
     <script src="js/tankSpawnTower.js"></script>
     <script src="js/barbedWire.js"></script>
     <script src="js/trench.js"></script>
+    <script src="js/repairBase.js"></script>
+    <script src="js/airport.js"></script>
     <script src="js/soldier.js"></script>
     <script src="js/tank.js"></script>
+    <script src="js/tankWreck.js"></script>
+    <script src="js/plane.js"></script>
     <script src="js/bulldozer.js"></script>
     <script src="js/sniper.js"></script>
     <script src="js/artillery.js"></script>
