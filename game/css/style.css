@@ -204,6 +204,7 @@ p {
     border: none;
 }
 
+#custom-map-modes,
 #custom-map-controls,
 #custom-map-actions {
     display: flex;
@@ -314,6 +315,7 @@ p {
         min-width: 0;
     }
 
+    #custom-map-modes,
     #custom-map-controls,
     #custom-map-actions {
         width: min(360px, 100%);

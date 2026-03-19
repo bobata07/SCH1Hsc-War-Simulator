@@ -21,6 +21,7 @@ class Game {
         this.mobileControlsOpen = false;
         this.isEditingMap = false;
         this.customMapStorageKey = 'war-simulator-custom-map';
+        this.customMapMode = 'land';
         this.editorTool = 'rock';
         this.customMapObjects = this.loadCustomMap();
 
@@ -39,6 +40,8 @@ class Game {
         this.tanks = [];
         this.tankWrecks = [];
         this.planes = [];
+        this.submarines = [];
+        this.aircraftCarriers = [];
         this.bulldozers = [];
         this.snipers = [];
         this.artilleryUnits = [];
@@ -49,6 +52,8 @@ class Game {
         this.enemySnipers = [];
         this.enemyTanks = [];
         this.enemyPlanes = [];
+        this.enemySubmarines = [];
+        this.enemyAircraftCarriers = [];
         this.radiationZones = [];
         this.supplyCrates = [];
         this.selectedUnitType = 'tower';
@@ -59,6 +64,8 @@ class Game {
         this.maxEnemySnipers = 24;
         this.maxEnemyTanks = 28;
         this.maxEnemyPlanes = 20;
+        this.maxEnemySubmarines = 28;
+        this.maxEnemyAircraftCarriers = 10;
 
         // Wave Logic
         this.spawnTimer = 0;
@@ -66,6 +73,8 @@ class Game {
         this.enemySniperTimer = 0;
         this.enemyTankTimer = 0;
         this.enemyPlaneTimer = 0;
+        this.enemySubmarineTimer = 0;
+        this.enemyAircraftCarrierTimer = 0;
         this.enemyBarbedWireTimer = 0;
         this.supplyCrateTimer = 0;
         this.elapsedTime = 0;
@@ -108,6 +117,10 @@ class Game {
                     }
                 }
                 return;
+            }
+
+            if (this.selectedUnitType === 'submarine' || this.selectedUnitType === 'aircraft-carrier') {
+                if (this.customMapMode !== 'ocean') return;
             }
 
             if (isRightClick) return;
@@ -191,6 +204,20 @@ class Game {
                 if (this.gold >= 150) {
                     this.tanks.push(new Tank(x, y));
                     this.gold -= 150;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'submarine') {
+                if (this.gold >= 140) {
+                    this.submarines.push(new Submarine(x, y));
+                    this.gold -= 140;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'aircraft-carrier') {
+                if (this.gold >= 260) {
+                    this.aircraftCarriers.push(new AircraftCarrier(x, y));
+                    this.gold -= 260;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -291,9 +318,12 @@ class Game {
         this.enemySniperTimer = 0;
         this.enemyTankTimer = 0;
         this.enemyPlaneTimer = 0;
+        this.enemySubmarineTimer = 0;
+        this.enemyAircraftCarrierTimer = 0;
         this.enemyBarbedWireTimer = 0;
         this.supplyCrateTimer = 0;
         this.supplyCrates = [];
+        this.updateAvailableUnitsUI();
         this.updateHUD();
         requestAnimationFrame(this.loop);
     }
@@ -317,6 +347,11 @@ class Game {
         this.spawnIntensityLevel = Math.floor(this.elapsedTime / 10000) + 1;
         this.enemyResources = Math.max(0, 1 - (this.elapsedTime / 120000));
         this.enemyStrengthMultiplier = Math.max(0.35, this.enemyResources);
+
+        if (this.customMapMode === 'ocean') {
+            this.updateOceanBattle(deltaTime);
+            return;
+        }
 
         // Continuous enemy soldier spawning
         this.spawnTimer += deltaTime;
@@ -382,7 +417,7 @@ class Game {
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers, ...this.enemyTanks, ...this.enemyPlanes];
-        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.rocketStations, ...this.bunkers];
+        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.submarines, ...this.aircraftCarriers, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.rocketStations, ...this.bunkers];
 
         this.radiationZones.forEach(zone => {
             zone.duration -= deltaTime;
@@ -510,6 +545,12 @@ class Game {
         this.planes.forEach(p => p.update(hostileUnits, this.canvas.width, this.canvas.height));
         this.planes = this.planes.filter(p => !p.markedForDeletion);
 
+        // Update Naval Units
+        this.submarines.forEach(submarine => submarine.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.submarines = this.submarines.filter(submarine => !submarine.markedForDeletion);
+        this.aircraftCarriers.forEach(carrier => carrier.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.aircraftCarriers = this.aircraftCarriers.filter(carrier => !carrier.markedForDeletion);
+
         // Update Bulldozers
         this.bulldozers.forEach(b => {
             const repairedTank = b.update(this.radiationZones, this.tankWrecks, this.repairBases, this.canvas.width, this.canvas.height);
@@ -545,8 +586,71 @@ class Game {
         this.nuclearLaunchers = this.nuclearLaunchers.filter(launcher => !launcher.markedForDeletion);
     }
 
+    updateOceanBattle(deltaTime) {
+        this.spawnTimer += deltaTime;
+        if (this.enemyResources > 0 && this.spawnTimer > 1800 && this.enemySubmarines.length < this.maxEnemySubmarines) {
+            const availableSlots = this.maxEnemySubmarines - this.enemySubmarines.length;
+            const scaledSpawnCount = Math.max(1, Math.ceil((this.spawnIntensityLevel * this.enemyStrengthMultiplier) / 1.5));
+            const spawnCount = Math.min(scaledSpawnCount, availableSlots);
+
+            for (let i = 0; i < spawnCount; i++) {
+                this.enemySubmarines.push(new EnemySubmarine(this.canvas.width, this.canvas.height));
+            }
+            this.spawnTimer = 0;
+        }
+
+        this.enemyAircraftCarrierTimer += deltaTime;
+        const carrierInterval = Math.max(7000, 15000 - ((this.spawnIntensityLevel - 1) * 400));
+        if (this.enemyResources > 0 && this.enemyAircraftCarrierTimer >= carrierInterval && this.enemyAircraftCarriers.length < this.maxEnemyAircraftCarriers) {
+            this.enemyAircraftCarriers.push(new EnemyAircraftCarrier(this.canvas.width, this.canvas.height));
+            this.enemyAircraftCarrierTimer = 0;
+        }
+
+        const nextWave = Math.floor(this.elapsedTime / 15000) + 1;
+        if (nextWave !== this.wave) {
+            this.wave = nextWave;
+            this.updateHUD();
+        }
+
+        const hostileUnits = [...this.enemySubmarines, ...this.enemyAircraftCarriers];
+        const playerCombatUnits = [...this.submarines, ...this.aircraftCarriers];
+
+        this.enemySubmarines.forEach(enemy => enemy.update(playerCombatUnits, this.canvas.width, this.canvas.height));
+        this.enemyAircraftCarriers.forEach(enemy => enemy.update(playerCombatUnits, this.canvas.width, this.canvas.height));
+
+        for (let i = this.enemySubmarines.length - 1; i >= 0; i--) {
+            const enemy = this.enemySubmarines[i];
+            if (enemy.markedForDeletion) {
+                this.enemySubmarines.splice(i, 1);
+                this.score += 18;
+                this.gold += 18;
+                this.updateHUD();
+            }
+        }
+
+        for (let i = this.enemyAircraftCarriers.length - 1; i >= 0; i--) {
+            const enemy = this.enemyAircraftCarriers[i];
+            if (enemy.markedForDeletion) {
+                this.enemyAircraftCarriers.splice(i, 1);
+                this.score += 35;
+                this.gold += 35;
+                this.updateHUD();
+            }
+        }
+
+        if (!this.enemyDefeated && this.enemyResources <= 0 && this.enemySubmarines.length === 0 && this.enemyAircraftCarriers.length === 0) {
+            this.victory();
+            return;
+        }
+
+        this.submarines.forEach(submarine => submarine.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.submarines = this.submarines.filter(submarine => !submarine.markedForDeletion);
+        this.aircraftCarriers.forEach(carrier => carrier.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.aircraftCarriers = this.aircraftCarriers.filter(carrier => !carrier.markedForDeletion);
+    }
+
     draw() {
-        this.ctx.fillStyle = '#222';
+        this.drawBattlefieldBackground();
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawCustomMapObjects(this.ctx);
 
@@ -555,6 +659,8 @@ class Game {
         this.enemySnipers.forEach(e => e.draw(this.ctx));
         this.enemyTanks.forEach(e => e.draw(this.ctx));
         this.enemyPlanes.forEach(e => e.draw(this.ctx));
+        this.enemySubmarines.forEach(e => e.draw(this.ctx));
+        this.enemyAircraftCarriers.forEach(e => e.draw(this.ctx));
         this.radiationZones.forEach(zone => this.drawRadiationZone(zone));
         this.supplyCrates.forEach(crate => crate.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
@@ -570,6 +676,8 @@ class Game {
         this.tankWrecks.forEach(wreck => wreck.draw(this.ctx));
         this.tanks.forEach(t => t.draw(this.ctx));
         this.planes.forEach(p => p.draw(this.ctx));
+        this.submarines.forEach(submarine => submarine.draw(this.ctx));
+        this.aircraftCarriers.forEach(carrier => carrier.draw(this.ctx));
         this.bulldozers.forEach(b => b.draw(this.ctx));
         this.snipers.forEach(s => s.draw(this.ctx));
         this.artilleryUnits.forEach(a => a.draw(this.ctx));
@@ -591,20 +699,34 @@ class Game {
             const raw = localStorage.getItem(this.customMapStorageKey);
             if (!raw) return [];
             const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed : [];
+            if (Array.isArray(parsed)) {
+                this.customMapMode = 'land';
+                return parsed;
+            }
+            if (parsed && Array.isArray(parsed.objects)) {
+                this.customMapMode = parsed.mode === 'ocean' ? 'ocean' : 'land';
+                return parsed.objects;
+            }
+            this.customMapMode = 'land';
+            return [];
         } catch {
+            this.customMapMode = 'land';
             return [];
         }
     }
 
     saveCustomMap() {
-        localStorage.setItem(this.customMapStorageKey, JSON.stringify(this.customMapObjects));
+        localStorage.setItem(this.customMapStorageKey, JSON.stringify({
+            mode: this.customMapMode,
+            objects: this.customMapObjects
+        }));
     }
 
     openCustomMapEditor() {
         this.isEditingMap = true;
         this.isPlaying = false;
         this.isPaused = false;
+        this.updateEditorModeUI();
         this.drawEditor();
     }
 
@@ -616,6 +738,45 @@ class Game {
         this.editorTool = tool;
         document.querySelectorAll('#custom-map-controls .unit-btn').forEach(btn => btn.classList.remove('selected'));
         document.getElementById(`editor-${tool}-btn`).classList.add('selected');
+    }
+
+    setCustomMapMode(mode) {
+        this.customMapMode = mode === 'ocean' ? 'ocean' : 'land';
+        this.updateEditorModeUI();
+        this.updateAvailableUnitsUI();
+        this.drawEditor();
+    }
+
+    updateEditorModeUI() {
+        const description = document.getElementById('custom-map-description');
+        document.getElementById('editor-land-mode-btn').classList.toggle('selected', this.customMapMode === 'land');
+        document.getElementById('editor-ocean-mode-btn').classList.toggle('selected', this.customMapMode === 'ocean');
+        description.textContent = this.customMapMode === 'ocean'
+            ? 'Ocean map: build sea obstacles here, then battle with submarines and aircraft carriers.'
+            : 'Choose a tile and click the battlefield to build your map.';
+        document.getElementById('editor-rock-btn').textContent = this.customMapMode === 'ocean' ? 'Reef' : 'Rock';
+        document.getElementById('editor-wall-btn').textContent = this.customMapMode === 'ocean' ? 'Sea Wall' : 'Wall';
+        document.getElementById('editor-bunker-btn').textContent = this.customMapMode === 'ocean' ? 'Port' : 'Bunker';
+    }
+
+    updateAvailableUnitsUI() {
+        const buttons = document.querySelectorAll('#controls [data-map-mode]');
+        buttons.forEach(button => {
+            const mode = button.dataset.mapMode;
+            const shouldShow = mode === this.customMapMode;
+            button.classList.toggle('hidden', !shouldShow);
+        });
+
+        const selectedButton = document.getElementById(`btn-${this.selectedUnitType}`);
+        if (!selectedButton || selectedButton.classList.contains('hidden')) {
+            this.selectedUnitType = this.customMapMode === 'ocean' ? 'submarine' : 'tower';
+        }
+
+        document.querySelectorAll('#controls .unit-btn').forEach(btn => btn.classList.remove('selected'));
+        const currentButton = document.getElementById(`btn-${this.selectedUnitType}`);
+        if (currentButton && !currentButton.classList.contains('hidden')) {
+            currentButton.classList.add('selected');
+        }
     }
 
     handleMapEditorInput(x, y) {
@@ -656,7 +817,7 @@ class Game {
     }
 
     drawEditor() {
-        this.ctx.fillStyle = '#24303a';
+        this.drawBattlefieldBackground(true);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -679,7 +840,10 @@ class Game {
         this.ctx.fillStyle = '#d6ecff';
         this.ctx.font = '16px Segoe UI';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText('Map editor: click to place, choose a tile above, save when done.', 18, this.canvas.height - 20);
+        const editorText = this.customMapMode === 'ocean'
+            ? 'Ocean editor: place sea tiles, save the map, then fight using submarines and aircraft carriers.'
+            : 'Map editor: click to place, choose a tile above, save when done.';
+        this.ctx.fillText(editorText, 18, this.canvas.height - 20);
     }
 
     drawCustomMapObjects(ctx) {
@@ -688,11 +852,11 @@ class Game {
 
     drawCustomMapObject(ctx, obj) {
         if (obj.type === 'rock') {
-            ctx.fillStyle = '#6c737c';
+            ctx.fillStyle = this.customMapMode === 'ocean' ? '#2b7189' : '#6c737c';
             ctx.beginPath();
             ctx.arc(obj.x, obj.y, 22, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = '#8d949d';
+            ctx.fillStyle = this.customMapMode === 'ocean' ? '#76b9c7' : '#8d949d';
             ctx.beginPath();
             ctx.arc(obj.x - 6, obj.y - 6, 8, 0, Math.PI * 2);
             ctx.fill();
@@ -700,19 +864,31 @@ class Game {
         }
 
         if (obj.type === 'wall') {
-            ctx.fillStyle = '#8a6e55';
+            ctx.fillStyle = this.customMapMode === 'ocean' ? '#456c79' : '#8a6e55';
             ctx.fillRect(obj.x - 28, obj.y - 12, 56, 24);
-            ctx.strokeStyle = '#d3bb91';
+            ctx.strokeStyle = this.customMapMode === 'ocean' ? '#a8d8e8' : '#d3bb91';
             ctx.strokeRect(obj.x - 28, obj.y - 12, 56, 24);
             return;
         }
 
         if (obj.type === 'bunker') {
-            ctx.fillStyle = '#4f5e4e';
+            ctx.fillStyle = this.customMapMode === 'ocean' ? '#486f80' : '#4f5e4e';
             ctx.fillRect(obj.x - 24, obj.y - 18, 48, 36);
-            ctx.fillStyle = '#273126';
+            ctx.fillStyle = this.customMapMode === 'ocean' ? '#1f4352' : '#273126';
             ctx.fillRect(obj.x - 10, obj.y - 6, 20, 12);
         }
+    }
+
+    drawBattlefieldBackground(editorView = false) {
+        if (this.customMapMode === 'ocean') {
+            const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+            gradient.addColorStop(0, '#1e5673');
+            gradient.addColorStop(1, '#0b2333');
+            this.ctx.fillStyle = gradient;
+            return;
+        }
+
+        this.ctx.fillStyle = editorView ? '#24303a' : '#222';
     }
 
     drawRadiationZone(zone) {
@@ -764,8 +940,11 @@ class Game {
 
     setUnitType(type) {
         this.selectedUnitType = type;
-        document.querySelectorAll('.unit-btn').forEach(btn => btn.classList.remove('selected'));
-        document.getElementById(`btn-${type}`).classList.add('selected');
+        document.querySelectorAll('#controls .unit-btn').forEach(btn => btn.classList.remove('selected'));
+        const button = document.getElementById(`btn-${type}`);
+        if (button && !button.classList.contains('hidden')) {
+            button.classList.add('selected');
+        }
     }
 
     togglePause() {
@@ -900,6 +1079,14 @@ class Game {
             unit.markedForDeletion = true;
             unit.health = 0;
         });
+        this.enemySubmarines.forEach(unit => {
+            unit.markedForDeletion = true;
+            unit.health = 0;
+        });
+        this.enemyAircraftCarriers.forEach(unit => {
+            unit.markedForDeletion = true;
+            unit.health = 0;
+        });
 
         this.radiationZones.push({
             x,
@@ -917,6 +1104,8 @@ class Game {
             { list: this.artilleryUnits, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 32, 24) },
             { list: this.drones, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.planes, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
+            { list: this.aircraftCarriers, hit: obj => obj.containsPoint(x, y) },
+            { list: this.submarines, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, 24) },
             { list: this.snipers, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, 12) },
             { list: this.bulldozers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 44, 28) },
             { list: this.tanks, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 24) },
@@ -1007,6 +1196,8 @@ window.addEventListener('load', () => {
     const editorWallBtn = document.getElementById('editor-wall-btn');
     const editorBunkerBtn = document.getElementById('editor-bunker-btn');
     const editorEraseBtn = document.getElementById('editor-erase-btn');
+    const editorLandModeBtn = document.getElementById('editor-land-mode-btn');
+    const editorOceanModeBtn = document.getElementById('editor-ocean-mode-btn');
     const editorSaveBtn = document.getElementById('editor-save-btn');
     const editorPlayBtn = document.getElementById('editor-play-btn');
     const editorBackBtn = document.getElementById('editor-back-btn');
@@ -1025,6 +1216,7 @@ window.addEventListener('load', () => {
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('settings-screen').classList.add('hidden');
         game.mobileControlsOpen = !game.isMobileLayout();
+        game.updateAvailableUnitsUI();
         game.updateMobileControlsUI();
         game.closeCustomMapEditor();
         game.start();
@@ -1088,6 +1280,8 @@ window.addEventListener('load', () => {
     editorWallBtn.addEventListener('click', () => game.setEditorTool('wall'));
     editorBunkerBtn.addEventListener('click', () => game.setEditorTool('bunker'));
     editorEraseBtn.addEventListener('click', () => game.setEditorTool('erase'));
+    editorLandModeBtn.addEventListener('click', () => game.setCustomMapMode('land'));
+    editorOceanModeBtn.addEventListener('click', () => game.setCustomMapMode('ocean'));
 
     editorSaveBtn.addEventListener('click', () => {
         game.saveCustomMap();
@@ -1137,6 +1331,8 @@ window.addEventListener('load', () => {
     document.getElementById('btn-soldier').addEventListener('click', () => setUnitType('soldier'));
     document.getElementById('btn-tank').addEventListener('click', () => setUnitType('tank'));
     document.getElementById('btn-plane').addEventListener('click', () => setUnitType('plane'));
+    document.getElementById('btn-submarine').addEventListener('click', () => setUnitType('submarine'));
+    document.getElementById('btn-aircraft-carrier').addEventListener('click', () => setUnitType('aircraft-carrier'));
     document.getElementById('btn-bulldozer').addEventListener('click', () => setUnitType('bulldozer'));
     document.getElementById('btn-sniper').addEventListener('click', () => setUnitType('sniper'));
     document.getElementById('btn-artillery').addEventListener('click', () => setUnitType('artillery'));

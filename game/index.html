@@ -26,22 +26,24 @@
         <button id="mobile-controls-toggle" class="action-btn hidden">Deploy</button>
 
         <div id="controls" class="hidden">
-            <button id="btn-tower" class="unit-btn selected">Tower (50g)</button>
-            <button id="btn-spawn-tower" class="unit-btn">Spawn Tower (90g)</button>
-            <button id="btn-tank-spawn-tower" class="unit-btn">Tank Tower (220g)</button>
-            <button id="btn-barbed-wire" class="unit-btn">Barbed Wire (40g)</button>
-            <button id="btn-trench" class="unit-btn">Trench (60g)</button>
-            <button id="btn-repair-base" class="unit-btn">Repair Base (130g)</button>
-            <button id="btn-airport" class="unit-btn">Airport (180g)</button>
-            <button id="btn-bunker" class="unit-btn">Bunker (170g)</button>
-            <button id="btn-soldier" class="unit-btn">Soldier (30g)</button>
-            <button id="btn-tank" class="unit-btn">Tank (150g)</button>
-            <button id="btn-plane" class="unit-btn">Plane (160g)</button>
-            <button id="btn-bulldozer" class="unit-btn">Bulldozer (95g)</button>
-            <button id="btn-sniper" class="unit-btn">Sniper (80g)</button>
-            <button id="btn-artillery" class="unit-btn">Artillery (120g)</button>
-            <button id="btn-drone" class="unit-btn">Drone (110g)</button>
-            <button id="btn-rocket-station" class="unit-btn">Rocket Station (140g)</button>
+            <button id="btn-tower" class="unit-btn selected" data-map-mode="land">Tower (50g)</button>
+            <button id="btn-spawn-tower" class="unit-btn" data-map-mode="land">Spawn Tower (90g)</button>
+            <button id="btn-tank-spawn-tower" class="unit-btn" data-map-mode="land">Tank Tower (220g)</button>
+            <button id="btn-barbed-wire" class="unit-btn" data-map-mode="land">Barbed Wire (40g)</button>
+            <button id="btn-trench" class="unit-btn" data-map-mode="land">Trench (60g)</button>
+            <button id="btn-repair-base" class="unit-btn" data-map-mode="land">Repair Base (130g)</button>
+            <button id="btn-airport" class="unit-btn" data-map-mode="land">Airport (180g)</button>
+            <button id="btn-bunker" class="unit-btn" data-map-mode="land">Bunker (170g)</button>
+            <button id="btn-soldier" class="unit-btn" data-map-mode="land">Soldier (30g)</button>
+            <button id="btn-tank" class="unit-btn" data-map-mode="land">Tank (150g)</button>
+            <button id="btn-plane" class="unit-btn" data-map-mode="land">Plane (160g)</button>
+            <button id="btn-bulldozer" class="unit-btn" data-map-mode="land">Bulldozer (95g)</button>
+            <button id="btn-sniper" class="unit-btn" data-map-mode="land">Sniper (80g)</button>
+            <button id="btn-artillery" class="unit-btn" data-map-mode="land">Artillery (120g)</button>
+            <button id="btn-drone" class="unit-btn" data-map-mode="land">Drone (110g)</button>
+            <button id="btn-submarine" class="unit-btn hidden" data-map-mode="ocean">Submarine (140g)</button>
+            <button id="btn-aircraft-carrier" class="unit-btn hidden" data-map-mode="ocean">Aircraft Carrier (260g)</button>
+            <button id="btn-rocket-station" class="unit-btn" data-map-mode="land">Rocket Station (140g)</button>
             <button id="btn-nuclear-launcher" class="unit-btn">Nuclear Launcher (400g)</button>
             <button id="btn-launch-rockets" class="action-btn">Launch Rocket</button>
             <button id="btn-launch-nuke" class="action-btn">Launch Nuke</button>
@@ -102,7 +104,11 @@
 
         <div id="custom-map-screen" class="screen hidden">
             <h1>Custom Map</h1>
-            <p>Choose a tile and click the battlefield to build your map.</p>
+            <p id="custom-map-description">Choose a tile and click the battlefield to build your map.</p>
+            <div id="custom-map-modes">
+                <button id="editor-land-mode-btn" class="unit-btn selected">Land Map</button>
+                <button id="editor-ocean-mode-btn" class="unit-btn">Ocean Map</button>
+            </div>
             <div id="custom-map-controls">
                 <button id="editor-rock-btn" class="unit-btn selected">Rock</button>
                 <button id="editor-wall-btn" class="unit-btn">Wall</button>
@@ -144,6 +150,10 @@
     <script src="js/sniper.js"></script>
     <script src="js/artillery.js"></script>
     <script src="js/drone.js"></script>
+    <script src="js/submarine.js"></script>
+    <script src="js/aircraftCarrier.js"></script>
+    <script src="js/enemySubmarine.js"></script>
+    <script src="js/enemyAircraftCarrier.js"></script>
     <script src="js/supplyCrate.js"></script>
     <script src="js/rocketStation.js"></script>
     <script src="js/nuclearLauncher.js"></script>
