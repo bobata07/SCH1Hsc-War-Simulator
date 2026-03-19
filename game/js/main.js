@@ -9,7 +9,7 @@ class Game {
         this.lastTime = 0;
         this.isPlaying = false;
         this.isPaused = false;
-        this.baseStartingGold = 250;
+        this.baseStartingGold = 1000000;
         this.baseLives = 20;
         this.score = 0;
         this.gold = this.baseStartingGold;
