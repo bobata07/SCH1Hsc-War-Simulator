@@ -23,3 +23,4 @@ class TankWreck {
         ctx.stroke();
     }
 }
+

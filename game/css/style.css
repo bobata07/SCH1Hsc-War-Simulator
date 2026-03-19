@@ -72,6 +72,21 @@ canvas {
     z-index: 4;
 }
 
+#event-banner {
+    position: absolute;
+    top: 72px;
+    right: 12px;
+    max-width: 260px;
+    padding: 10px 14px;
+    background-color: rgba(6, 16, 24, 0.82);
+    border: 1px solid rgba(230, 244, 255, 0.35);
+    border-radius: 8px;
+    color: #dff1ff;
+    font-size: 0.95rem;
+    pointer-events: none;
+    z-index: 4;
+}
+
 .hud-btn {
     pointer-events: auto;
 }

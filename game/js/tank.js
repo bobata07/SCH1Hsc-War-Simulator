@@ -113,7 +113,7 @@ class Tank {
         this.projectiles.push(new Projectile(this.x, this.y, target, 9, 28, '#c8b24d', 6));
         const shotSound = this.shootSound.cloneNode();
         shotSound.currentTime = 0;
-        shotSound.play().catch(e => console.log("Audio play failed:", e));
+        shotSound.play().catch(() => {});
     }
 
     takeDamage(amount) {
@@ -121,7 +121,7 @@ class Tank {
         if (this.health <= 0) {
             this.markedForDeletion = true;
             this.destroyedAsWreck = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -139,3 +139,4 @@ class Tank {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+

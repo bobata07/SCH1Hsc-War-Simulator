@@ -37,3 +37,4 @@ class Airport {
         ctx.fillText('AIRPORT', this.x, this.y + 32);
     }
 }
+

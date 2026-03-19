@@ -53,7 +53,7 @@ class Artillery {
             displayFrames: 8
         }));
         const shotSound = new Audio(Artillery.currentSoundPath);
-        shotSound.play().catch(e => console.log("Audio play failed:", e));
+        shotSound.play().catch(() => {});
     }
 
     distanceTo(target) {
@@ -64,7 +64,7 @@ class Artillery {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -102,3 +102,4 @@ Artillery.currentSoundPath = 'assets/sounds/artillery sounds/cannon-sound-effect
 Artillery.setFireSound = function (soundPath) {
     Artillery.currentSoundPath = soundPath;
 };
+

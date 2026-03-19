@@ -65,7 +65,7 @@ class Sniper {
         this.projectiles.push(new Projectile(this.x, this.y, target, 12, 35, 'orange', 4));
         const shotSound = this.shootSound.cloneNode();
         shotSound.currentTime = 0;
-        shotSound.play().catch(e => console.log("Audio play failed:", e));
+        shotSound.play().catch(() => {});
         this.target = null;
     }
 
@@ -77,7 +77,7 @@ class Sniper {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -112,3 +112,4 @@ class Sniper {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+

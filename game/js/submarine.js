@@ -89,3 +89,4 @@ class Submarine {
         this.projectiles.forEach(p => p.draw(ctx));
     }
 }
+

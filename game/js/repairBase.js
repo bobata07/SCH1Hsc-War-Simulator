@@ -41,3 +41,4 @@ class RepairBase {
         ctx.fillText(`${this.assignedTanks.size}/${this.capacity}`, this.x, this.y + 34);
     }
 }
+

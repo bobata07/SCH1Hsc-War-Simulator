@@ -85,7 +85,7 @@ class Plane {
     shoot(target) {
         this.projectiles.push(new Projectile(this.x, this.y, target, 10, 18, '#b9ecff', 4));
         const shotSound = this.shootSound.cloneNode();
-        shotSound.play().catch(e => console.log("Audio play failed:", e));
+        shotSound.play().catch(() => {});
     }
 
     distanceTo(target) {
@@ -96,7 +96,7 @@ class Plane {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -132,3 +132,4 @@ class Plane {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+

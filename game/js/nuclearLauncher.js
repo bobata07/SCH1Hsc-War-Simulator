@@ -21,7 +21,7 @@ class NuclearLauncher {
                 missile.y = missile.targetY;
                 missile.markedForDeletion = true;
                 const impactSound = this.impactSound.cloneNode();
-                impactSound.play().catch(e => console.log("Audio play failed:", e));
+                impactSound.play().catch(() => {});
                 onDetonate(missile.targetX, missile.targetY);
                 return;
             }
@@ -45,14 +45,14 @@ class NuclearLauncher {
 
         const launchSound = this.launchSound.cloneNode();
         launchSound.currentTime = 0;
-        launchSound.play().catch(e => console.log("Audio play failed:", e));
+        launchSound.play().catch(() => {});
     }
 
     takeDamage(amount) {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -81,3 +81,4 @@ class NuclearLauncher {
         });
     }
 }
+

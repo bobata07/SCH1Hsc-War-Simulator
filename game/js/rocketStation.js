@@ -32,7 +32,7 @@ class RocketStation {
         this.projectiles.push(new Projectile(this.x, this.y, target, 11, 70, '#ff5a36', 8));
         const rocketSound = this.rocketSound.cloneNode();
         rocketSound.currentTime = 0;
-        rocketSound.play().catch(e => console.log("Audio play failed:", e));
+        rocketSound.play().catch(() => {});
         return true;
     }
 
@@ -55,7 +55,7 @@ class RocketStation {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -73,3 +73,4 @@ class RocketStation {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+

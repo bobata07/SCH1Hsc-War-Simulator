@@ -43,3 +43,4 @@ class SupplyCrate {
         ctx.fillText('+120', this.x, this.y - 22);
     }
 }
+

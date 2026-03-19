@@ -30,3 +30,4 @@ class TankSpawnTower {
         ctx.fillRect(this.x - 4, this.y - 8, 8, 16);
     }
 }
+

@@ -94,7 +94,7 @@ class Soldier {
         this.projectiles.push(new Projectile(this.x, this.y, target));
         const shotSound = this.shootSound.cloneNode();
         shotSound.currentTime = 0;
-        shotSound.play().catch(e => console.log("Audio play failed:", e));
+        shotSound.play().catch(() => {});
     }
 
     getAttackPoint(target) {
@@ -148,7 +148,7 @@ class Soldier {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -166,3 +166,4 @@ class Soldier {
         this.projectiles.forEach(p => p.draw(ctx));
     }
 }
+

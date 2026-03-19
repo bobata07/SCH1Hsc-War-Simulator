@@ -76,7 +76,7 @@ class Drone {
     dropBomb(target) {
         this.projectiles.push(new Projectile(this.x, this.y + 8, target, 7, 45, '#2a2a2a', 6));
         const bombSound = this.bombSound.cloneNode();
-        bombSound.play().catch(e => console.log("Audio play failed:", e));
+        bombSound.play().catch(() => {});
     }
 
     distanceTo(target) {
@@ -87,7 +87,7 @@ class Drone {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -117,3 +117,4 @@ class Drone {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+

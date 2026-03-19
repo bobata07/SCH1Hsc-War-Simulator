@@ -2,6 +2,18 @@
 
 class Game {
     constructor() {
+        if (!window.__warSimulatorAudioPatched) {
+            window.__warSimulatorAudioPatched = true;
+            window.WAR_SIMULATOR_MUTED = false;
+            const nativePlay = HTMLMediaElement.prototype.play;
+            HTMLMediaElement.prototype.play = function (...args) {
+                if (window.WAR_SIMULATOR_MUTED) {
+                    return Promise.resolve();
+                }
+                return nativePlay.apply(this, args);
+            };
+        }
+
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
 
@@ -115,7 +127,7 @@ class Game {
                         this.planes.push(new Plane(airport));
                         this.gold -= 160;
                         this.updateHUD();
-                        this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                        this.buildSound.cloneNode().play().catch(() => {});
                     }
                 }
                 return;
@@ -144,126 +156,126 @@ class Game {
                     this.towers.push(new Tower(x, y));
                     this.gold -= 50;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'spawn-tower') {
                 if (this.gold >= 90) {
                     this.spawnTowers.push(new SpawnTower(x, y));
                     this.gold -= 90;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'tank-spawn-tower') {
                 if (this.gold >= 220) {
                     this.tankSpawnTowers.push(new TankSpawnTower(x, y));
                     this.gold -= 220;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'barbed-wire') {
                 if (this.gold >= 40) {
                     this.barbedWires.push(new BarbedWire(x, y));
                     this.gold -= 40;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'trench') {
                 if (this.gold >= 60) {
                     this.trenches.push(new Trench(x, y));
                     this.gold -= 60;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'repair-base') {
                 if (this.gold >= 130) {
                     this.repairBases.push(new RepairBase(x, y));
                     this.gold -= 130;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'airport') {
                 if (this.gold >= 180) {
                     this.airports.push(new Airport(x, y));
                     this.gold -= 180;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'bunker') {
                 if (this.gold >= 170) {
                     this.bunkers.push(new Bunker(x, y));
                     this.gold -= 170;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'soldier') {
                 if (this.gold >= 30 && this.soldiers.length < this.maxFriendlySoldiers) {
                     this.soldiers.push(new Soldier(x, y));
                     this.gold -= 30;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'tank') {
                 if (this.gold >= 150) {
                     this.tanks.push(new Tank(x, y));
                     this.gold -= 150;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'submarine') {
                 if (this.gold >= 140) {
                     this.submarines.push(new Submarine(x, y));
                     this.gold -= 140;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'aircraft-carrier') {
                 if (this.gold >= 260) {
                     this.aircraftCarriers.push(new AircraftCarrier(x, y));
                     this.gold -= 260;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'bulldozer') {
                 if (this.gold >= 95) {
                     this.bulldozers.push(new Bulldozer(x, y));
                     this.gold -= 95;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'sniper') {
                 if (this.gold >= 80) {
                     this.snipers.push(new Sniper(x, y));
                     this.gold -= 80;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'artillery') {
                 if (this.gold >= 120) {
                     this.artilleryUnits.push(new Artillery(x, y));
                     this.gold -= 120;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'drone') {
                 if (this.gold >= 110) {
                     this.drones.push(new Drone(x, y));
                     this.gold -= 110;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'rocket-station') {
                 if (this.gold >= 140) {
                     this.rocketStations.push(new RocketStation(x, y));
                     this.gold -= 140;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'nuclear-launcher') {
                 if (this.gold >= 400) {
                     this.nuclearLaunchers.push(new NuclearLauncher(x, y));
                     this.gold -= 400;
                     this.updateHUD();
-                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                    this.buildSound.cloneNode().play().catch(() => {});
                 }
             }
         };
@@ -281,18 +293,43 @@ class Game {
             const touch = e.changedTouches[0];
             handleInput(touch.clientX, touch.clientY, 0);
         }, { passive: false });
+        this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            this.cycleVisibleUnitSelection(e.deltaY > 0 ? 1 : -1);
+        }, { passive: false });
 
         // Resize logic
 
         // Resize logic
         window.addEventListener('resize', () => this.resize());
         this.resize();
+        window.addEventListener('blur', () => {
+            if (this.isPlaying && !this.isPaused) {
+                this.isPaused = true;
+                document.getElementById('pause-screen').classList.remove('hidden');
+                this.showEventBanner('Paused because the window lost focus.');
+            }
+        });
+        window.addEventListener('focus', () => {
+            if (this.isPlaying) {
+                this.showEventBanner('Window focus restored.');
+            }
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.isPlaying && !this.isPaused) {
+                this.isPaused = true;
+                document.getElementById('pause-screen').classList.remove('hidden');
+                this.showEventBanner('Paused because the tab was hidden.');
+            }
+        });
 
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.settingsOpen) {
                 this.closeSettings();
             } else if (e.key === 'Escape' && this.isPlaying) {
                 this.togglePause();
+            } else if ((e.key === 'm' || e.key === 'M') && !this.settingsOpen) {
+                this.toggleMute();
             }
         });
 
@@ -327,6 +364,8 @@ class Game {
         this.supplyCrateTimer = 0;
         this.updateAvailableUnitsUI();
         this.updateHUD();
+        this.dispatchGameEvent('gameStart', { mapMode: this.customMapMode });
+        this.showEventBanner(`Battle started on ${this.customMapMode} map.`);
         requestAnimationFrame(this.loop);
     }
 
@@ -455,6 +494,8 @@ class Game {
         if (nextWave !== this.wave) {
             this.wave = nextWave;
             this.updateHUD();
+            this.dispatchGameEvent('levelUp', { wave: this.wave });
+            this.showEventBanner(`Wave ${this.wave} reached.`);
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers, ...this.enemyTanks, ...this.enemyPlanes];
@@ -651,6 +692,8 @@ class Game {
         if (nextWave !== this.wave) {
             this.wave = nextWave;
             this.updateHUD();
+            this.dispatchGameEvent('levelUp', { wave: this.wave, mapMode: 'ocean' });
+            this.showEventBanner(`Naval wave ${this.wave} reached.`);
         }
 
         const hostileUnits = [...this.enemySubmarines, ...this.enemyAircraftCarriers];
@@ -955,6 +998,7 @@ class Game {
     gameOver() {
         this.isPlaying = false;
         this.isPaused = false;
+        this.dispatchGameEvent('gameOver', { score: this.score, result: 'defeat' });
         document.getElementById('game-over-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
@@ -969,6 +1013,7 @@ class Game {
         this.isPlaying = false;
         this.isPaused = false;
         this.enemyDefeated = true;
+        this.dispatchGameEvent('gameOver', { score: this.score, result: 'victory' });
         document.getElementById('victory-screen').classList.remove('hidden');
         document.getElementById('victory-score').innerText = this.score;
         document.getElementById('hud').classList.add('hidden');
@@ -992,6 +1037,45 @@ class Game {
         if (this.settingsOpen || !this.isPlaying) return;
         this.isPaused = !this.isPaused;
         document.getElementById('pause-screen').classList.toggle('hidden', !this.isPaused);
+    }
+
+    toggleMute() {
+        window.WAR_SIMULATOR_MUTED = !window.WAR_SIMULATOR_MUTED;
+        const muteButton = document.getElementById('mute-audio-btn');
+        if (muteButton) {
+            muteButton.textContent = `Mute Audio: ${window.WAR_SIMULATOR_MUTED ? 'On' : 'Off'}`;
+        }
+        this.showEventBanner(window.WAR_SIMULATOR_MUTED ? 'Audio muted.' : 'Audio unmuted.');
+    }
+
+    dispatchGameEvent(name, detail = {}) {
+        window.dispatchEvent(new CustomEvent(name, { detail }));
+    }
+
+    showEventBanner(message) {
+        const banner = document.getElementById('event-banner');
+        if (!banner) return;
+
+        banner.textContent = message;
+        banner.classList.remove('hidden');
+        clearTimeout(this.bannerTimeoutId);
+        this.bannerTimeoutId = setTimeout(() => {
+            banner.classList.add('hidden');
+        }, 2200);
+    }
+
+    cycleVisibleUnitSelection(direction) {
+        if (!this.isPlaying || this.isPaused) return;
+
+        const buttons = [...document.querySelectorAll('#controls .unit-btn:not(.hidden)')];
+        if (!buttons.length) return;
+
+        const currentIndex = buttons.findIndex(button => button.id === `btn-${this.selectedUnitType}`);
+        const nextIndex = currentIndex === -1
+            ? 0
+            : (currentIndex + direction + buttons.length) % buttons.length;
+        const nextType = buttons[nextIndex].id.replace('btn-', '');
+        this.setUnitType(nextType);
     }
 
     isMobileLayout() {
@@ -1180,7 +1264,7 @@ class Game {
                 this.score += 5;
                 crate.markedForDeletion = true;
                 this.updateHUD();
-                this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                this.buildSound.cloneNode().play().catch(() => {});
                 return true;
             }
         }
@@ -1232,6 +1316,7 @@ window.addEventListener('load', () => {
     const settingsBackBtn = document.getElementById('settings-back-btn');
     const gameSpeedSelect = document.getElementById('game-speed-select');
     const artillerySoundSelect = document.getElementById('artillery-sound-select');
+    const muteAudioBtn = document.getElementById('mute-audio-btn');
     const mobileControlsToggle = document.getElementById('mobile-controls-toggle');
     const editorRockBtn = document.getElementById('editor-rock-btn');
     const editorWallBtn = document.getElementById('editor-wall-btn');
@@ -1317,6 +1402,10 @@ window.addEventListener('load', () => {
         game.closeSettings();
     });
 
+    muteAudioBtn.addEventListener('click', () => {
+        game.toggleMute();
+    });
+
     editorRockBtn.addEventListener('click', () => game.setEditorTool('rock'));
     editorWallBtn.addEventListener('click', () => game.setEditorTool('wall'));
     editorBunkerBtn.addEventListener('click', () => game.setEditorTool('bunker'));
@@ -1393,3 +1482,4 @@ window.addEventListener('load', () => {
         game.updateMobileControlsUI();
     });
 });
+

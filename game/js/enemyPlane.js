@@ -113,3 +113,4 @@ class EnemyPlane {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
+

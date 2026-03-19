@@ -53,14 +53,14 @@ class EnemyArtillery {
             displayFrames: 8
         }));
         const shotSound = new Audio(EnemyArtillery.currentSoundPath);
-        shotSound.play().catch(e => console.log("Audio play failed:", e));
+        shotSound.play().catch(() => {});
     }
 
     takeDamage(amount) {
         this.health -= amount;
         if (this.health <= 0) {
             this.markedForDeletion = true;
-            new Audio('assets/sounds/soldier_die.wav').play().catch(e => console.error("Sound error:", e));
+            new Audio('assets/sounds/soldier_die.wav').play().catch(() => {});
         }
     }
 
@@ -98,3 +98,4 @@ EnemyArtillery.currentSoundPath = 'assets/sounds/artillery sounds/cannon-sound-e
 EnemyArtillery.setFireSound = function (soundPath) {
     EnemyArtillery.currentSoundPath = soundPath;
 };
+

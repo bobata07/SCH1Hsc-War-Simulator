@@ -219,3 +219,4 @@ class AircraftCarrier {
         ctx.fillText(`${readyCount}/3`, this.x, this.y + 24);
     }
 }
+

@@ -29,3 +29,4 @@ class SpawnTower {
         ctx.fillRect(this.x - 6, this.y - 24, 12, 10);
     }
 }
+

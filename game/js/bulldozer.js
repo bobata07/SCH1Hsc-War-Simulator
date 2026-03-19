@@ -149,3 +149,4 @@ class Bulldozer {
         ctx.fillRect(this.x - 20, this.y - 26, 40, 4);
     }
 }
+

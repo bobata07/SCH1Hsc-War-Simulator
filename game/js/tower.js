@@ -50,7 +50,7 @@ class Tower {
 
     shoot(target) {
         this.projectiles.push(new Projectile(this.x, this.y, target));
-        this.shootSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+        this.shootSound.cloneNode().play().catch(() => {});
     }
 
     draw(ctx) {
@@ -68,3 +68,4 @@ class Tower {
         this.projectiles.forEach(p => p.draw(ctx));
     }
 }
+

@@ -3,3 +3,4 @@ class EnemyAircraftCarrier extends AircraftCarrier {
         super(width - 120, 110 + Math.random() * Math.max(120, height - 220), { isEnemy: true });
     }
 }
+
