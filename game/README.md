@@ -1,10 +1,10 @@
 # War Simulator
 
-`War Simulator` is a browser-based battlefield defense game built with plain HTML, CSS, and JavaScript on top of an HTML5 canvas. The project started as a simple tower-defense prototype and has grown into a larger sandbox with infantry, tanks, support units, artillery, nuclear weapons, mobile controls, and enemy attrition.
+`War Simulator` is a browser-based battlefield sandbox built with plain HTML, CSS, and JavaScript on top of an HTML5 canvas. The project started as a simple tower-defense prototype and has grown into a larger land-and-sea combat sandbox with infantry, tanks, ships, support units, artillery, nuclear weapons, mobile controls, and a custom map editor.
 
 ## Overview
 
-The player places defensive and offensive units on the battlefield while enemy infantry, enemy snipers, and enemy artillery continue to spawn from the right side of the map. The goal is to survive until the enemy runs out of resources and all remaining hostile units are eliminated. If too many enemies reach the base, the player loses health and the game ends.
+The player places defensive and offensive units on the battlefield while the enemy keeps deploying its own forces. On land maps, the battle focuses on infantry, tanks, artillery, aircraft, and support structures. On ocean maps, the battle shifts to submarines and aircraft carriers. The goal is to survive until the enemy runs out of resources and all remaining hostile units are eliminated. If too many enemies break through on land maps, the player loses health and the game ends.
 
 The game has:
 - Real-time canvas rendering
@@ -14,6 +14,7 @@ The game has:
 - Friendly and hostile projectile combat
 - Radiation, supply pickups, and support vehicles
 - Endless-style pressure that later weakens as enemy resources decay
+- Custom map editor with land and ocean map modes
 
 ## Run The Game
 
@@ -23,6 +24,7 @@ This project has no build step.
 2. Click `Play Game`.
 3. Choose a unit from the control bar.
 4. Click or tap on the battlefield to deploy it.
+5. For planes, right-click an airport while `Plane` is selected.
 
 For the best results, use a modern Chromium-based browser or Firefox.
 
@@ -41,6 +43,8 @@ Enemy infantry that reaches the left side of the field damages the player base. 
 Gold is used to deploy units and structures. The player gains gold by:
 - Killing enemy units
 - Collecting supply crates
+
+The match starts with a normal starting budget instead of unlimited sandbox gold.
 
 ### Wave display
 
@@ -104,6 +108,21 @@ Damages enemy infantry while they are touching it.
 
 Area hazard that slows and damages enemy infantry.
 
+### Repair Base (130g)
+
+Support structure for tank recovery and repair workflows.
+
+### Airport (180g)
+
+Required for plane deployment. Player planes are deployed by right-clicking an airport while `Plane` is selected.
+
+### Bunker (170g)
+
+Heavy defensive structure that:
+- Shoots at nearby enemies
+- Takes reduced damage
+- Lets wounded soldiers retreat there and heal
+
 ### Soldier (30g)
 
 Mobile infantry unit that:
@@ -118,6 +137,26 @@ Heavy front-line unit with:
 - Cannon projectiles
 - Reduced incoming damage
 - Movement separation from nearby friendly movers
+
+### Plane (160g)
+
+Air unit that:
+- Can only be deployed from an airport
+- Lifts off after deployment
+- Fires at hostile units once airborne
+
+### Submarine (140g)
+
+Ocean-only naval unit that:
+- Can be deployed on ocean maps
+- Moves across the sea and fires at hostile naval targets
+
+### Aircraft Carrier (260g)
+
+Ocean-only capital ship that:
+- Can be deployed on ocean maps
+- Launches up to 3 carrier planes
+- Sends those planes into combat and recovers them back on deck
 
 ### Bulldozer (95g)
 
@@ -161,6 +200,16 @@ Heavy support launcher:
 - Missile travels to the destination
 - Impact destroys the current enemy army and creates radiation
 
+## Ocean Mode
+
+The custom map editor supports an `Ocean Map` mode.
+
+When an ocean map is used for battle:
+- The battlefield uses a sea background
+- The player deploys submarines and aircraft carriers
+- The enemy also uses submarines and aircraft carriers
+- Carrier planes lift off from their ships automatically during combat
+
 ## Enemy Units
 
 ### Enemy Infantry
@@ -174,6 +223,22 @@ Long-range hostile unit targeting player combat units.
 ### Enemy Artillery
 
 Hostile long-range support unit with instant-hit artillery shots.
+
+### Enemy Tank
+
+Heavy hostile armored unit.
+
+### Enemy Plane
+
+Hostile aircraft that attacks player units from the air.
+
+### Enemy Submarine
+
+Ocean-only hostile naval unit.
+
+### Enemy Aircraft Carrier
+
+Ocean-only hostile capital ship that launches its own carrier aircraft.
 
 ## Special Mechanics
 
@@ -209,9 +274,19 @@ This creates a match arc where the early and mid game are more intense, then the
 
 Left-clicking one of your own battlefield objects removes it. This allows repositioning and cleanup.
 
+Airports are intentionally excluded from quick left-click removal because planes depend on them for deployment.
+
 ### Mobile deploy tray
 
 On smaller screens, the control bar converts into a bottom deploy tray so the battlefield remains visible.
+
+### Custom map editor
+
+The `Make a custom map.` button opens a map editor where the player can:
+- Switch between `Land Map` and `Ocean Map`
+- Paint terrain / sea obstacles
+- Save the map
+- Start a battle directly on that saved map
 
 ## Audio
 
@@ -249,6 +324,8 @@ Examples:
 - [js/drone.js](./js/drone.js)
 - [js/rocketStation.js](./js/rocketStation.js)
 - [js/nuclearLauncher.js](./js/nuclearLauncher.js)
+- [js/submarine.js](./js/submarine.js)
+- [js/aircraftCarrier.js](./js/aircraftCarrier.js)
 - [js/supplyCrate.js](./js/supplyCrate.js)
 
 ### Enemy classes
@@ -256,6 +333,10 @@ Examples:
 - [js/enemy.js](./js/enemy.js)
 - [js/enemyArtillery.js](./js/enemyArtillery.js)
 - [js/enemySniper.js](./js/enemySniper.js)
+- [js/enemyTank.js](./js/enemyTank.js)
+- [js/enemyPlane.js](./js/enemyPlane.js)
+- [js/enemySubmarine.js](./js/enemySubmarine.js)
+- [js/enemyAircraftCarrier.js](./js/enemyAircraftCarrier.js)
 
 ### Shared systems
 
@@ -288,7 +369,7 @@ The original project included finite-state-machine infrastructure. The current g
 
 ## Known Design Characteristics
 
-- Gold is currently very generous by default, which makes the game more of a sandbox than a tightly balanced strategy game.
+- The project still leans toward sandbox gameplay more than strict competitive balance.
 - Unit counts can grow large, so some performance protections are already in place.
 - The game is intended to be easy to run and easy to modify, not heavily optimized or engine-driven.
 
@@ -300,7 +381,7 @@ The original project included finite-state-machine infrastructure. The current g
 - Add better balancing for gold costs and spawn rates
 - Add more distinct sounds for rockets, nukes, and drones
 - Add improved particle effects for explosions and impacts
-
+`
 ## Technologies Used
 
 - HTML5

@@ -9,9 +9,11 @@ class Game {
         this.lastTime = 0;
         this.isPlaying = false;
         this.isPaused = false;
+        this.baseStartingGold = 250;
+        this.baseLives = 20;
         this.score = 0;
-        this.gold = 10000000;
-        this.lives = 20;
+        this.gold = this.baseStartingGold;
+        this.lives = this.baseLives;
         this.wave = 1;
         this.gameSpeed = 1;
         this.enemyResources = 1;
@@ -307,6 +309,7 @@ class Game {
     }
 
     start() {
+        this.resetBattleState();
         this.isPlaying = true;
         this.lastTime = performance.now();
         this.elapsedTime = 0;
@@ -322,10 +325,48 @@ class Game {
         this.enemyAircraftCarrierTimer = 0;
         this.enemyBarbedWireTimer = 0;
         this.supplyCrateTimer = 0;
-        this.supplyCrates = [];
         this.updateAvailableUnitsUI();
         this.updateHUD();
         requestAnimationFrame(this.loop);
+    }
+
+    resetBattleState() {
+        this.score = 0;
+        this.gold = this.baseStartingGold;
+        this.lives = this.baseLives;
+        this.wave = 1;
+        this.awaitingNukeTarget = false;
+
+        this.enemies = [];
+        this.towers = [];
+        this.spawnTowers = [];
+        this.tankSpawnTowers = [];
+        this.barbedWires = [];
+        this.enemyBarbedWires = [];
+        this.trenches = [];
+        this.repairBases = [];
+        this.airports = [];
+        this.bunkers = [];
+        this.soldiers = [];
+        this.tanks = [];
+        this.tankWrecks = [];
+        this.planes = [];
+        this.submarines = [];
+        this.aircraftCarriers = [];
+        this.bulldozers = [];
+        this.snipers = [];
+        this.artilleryUnits = [];
+        this.drones = [];
+        this.rocketStations = [];
+        this.nuclearLaunchers = [];
+        this.enemyArtilleryUnits = [];
+        this.enemySnipers = [];
+        this.enemyTanks = [];
+        this.enemyPlanes = [];
+        this.enemySubmarines = [];
+        this.enemyAircraftCarriers = [];
+        this.radiationZones = [];
+        this.supplyCrates = [];
     }
 
     loop(currentTime) {

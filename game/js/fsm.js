@@ -4,7 +4,7 @@ class State {
     }
 
     enter(entity) {
-        console.log(`${entity.name} entering state: ${this.name}`);
+        return entity;
     }
 
     execute(entity) {
@@ -12,7 +12,7 @@ class State {
     }
 
     exit(entity) {
-        console.log(`${entity.name} exiting state: ${this.name}`);
+        return entity;
     }
 }
 
