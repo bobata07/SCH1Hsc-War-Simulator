@@ -33,6 +33,7 @@
             <button id="btn-trench" class="unit-btn">Trench (60g)</button>
             <button id="btn-repair-base" class="unit-btn">Repair Base (130g)</button>
             <button id="btn-airport" class="unit-btn">Airport (180g)</button>
+            <button id="btn-bunker" class="unit-btn">Bunker (170g)</button>
             <button id="btn-soldier" class="unit-btn">Soldier (30g)</button>
             <button id="btn-tank" class="unit-btn">Tank (150g)</button>
             <button id="btn-plane" class="unit-btn">Plane (160g)</button>
@@ -98,6 +99,22 @@
             </div>
             <button id="settings-back-btn" class="btn">Back</button>
         </div>
+
+        <div id="custom-map-screen" class="screen hidden">
+            <h1>Custom Map</h1>
+            <p>Choose a tile and click the battlefield to build your map.</p>
+            <div id="custom-map-controls">
+                <button id="editor-rock-btn" class="unit-btn selected">Rock</button>
+                <button id="editor-wall-btn" class="unit-btn">Wall</button>
+                <button id="editor-bunker-btn" class="unit-btn">Bunker</button>
+                <button id="editor-erase-btn" class="unit-btn">Eraser</button>
+            </div>
+            <div id="custom-map-actions">
+                <button id="editor-save-btn" class="btn">Save Map</button>
+                <button id="editor-play-btn" class="btn secondary-btn">Battle On Map</button>
+                <button id="editor-back-btn" class="btn secondary-btn">Back</button>
+            </div>
+        </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -118,6 +135,7 @@
     <script src="js/trench.js"></script>
     <script src="js/repairBase.js"></script>
     <script src="js/airport.js"></script>
+    <script src="js/bunker.js"></script>
     <script src="js/soldier.js"></script>
     <script src="js/tank.js"></script>
     <script src="js/tankWreck.js"></script>

@@ -204,6 +204,32 @@ p {
     border: none;
 }
 
+#custom-map-controls,
+#custom-map-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 16px;
+    pointer-events: auto;
+}
+
+#custom-map-screen {
+    background: none;
+    justify-content: flex-start;
+    padding-top: 48px;
+    pointer-events: none;
+}
+
+#custom-map-screen h1,
+#custom-map-screen p {
+    pointer-events: auto;
+}
+
+#custom-map-screen p {
+    margin-bottom: 12px;
+}
+
 @media (max-width: 900px) {
     #hud {
         top: 8px;
@@ -286,5 +312,10 @@ p {
     .settings-panel {
         width: min(340px, 100%);
         min-width: 0;
+    }
+
+    #custom-map-controls,
+    #custom-map-actions {
+        width: min(360px, 100%);
     }
 }

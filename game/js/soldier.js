@@ -17,34 +17,60 @@ class Soldier {
         this.formationAngle = Math.random() * Math.PI * 2;
         this.formationDistance = 18 + Math.random() * 34;
         this.cruiseDrift = (Math.random() - 0.5) * 0.8;
+        this.healingInBunker = false;
     }
 
-    update(enemies, allies, fieldWidth, fieldHeight) {
+    update(enemies, allies, bunkers, fieldWidth, fieldHeight) {
         if (this.cooldown > 0) this.cooldown--;
 
         this.projectiles.forEach(p => p.update());
         this.projectiles = this.projectiles.filter(p => !p.markedForDeletion);
 
-        const attackTarget = this.findTarget(enemies, this.visionRange);
-        if (attackTarget) {
-            const attackPoint = this.getAttackPoint(attackTarget);
-            this.moveToward(attackPoint.x, attackPoint.y, this.range - 12);
+        const bunker = this.findNearestBunker(bunkers);
+        if (bunker && (this.health <= this.maxHealth * 0.45 || this.healingInBunker)) {
+            this.healingInBunker = this.health < this.maxHealth * 0.95;
+            this.moveToward(bunker.x, bunker.y, 4);
         } else {
-            this.x += this.moveSpeed;
-            this.y += this.cruiseDrift;
+            this.healingInBunker = false;
+            const attackTarget = this.findTarget(enemies, this.visionRange);
+            if (attackTarget) {
+                const attackPoint = this.getAttackPoint(attackTarget);
+                this.moveToward(attackPoint.x, attackPoint.y, this.range - 12);
+            } else {
+                this.x += this.moveSpeed;
+                this.y += this.cruiseDrift;
+            }
         }
 
-        this.applySeparation(allies);
+        if (!this.healingInBunker) {
+            this.applySeparation(allies);
+        }
+
         this.x = Math.max(this.radius, Math.min(fieldWidth - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(fieldHeight - this.radius, this.y));
 
-        if (this.cooldown <= 0) {
+        if (!this.healingInBunker && this.cooldown <= 0) {
             const shootTarget = this.findTarget(enemies, this.range);
             if (shootTarget) {
                 this.shoot(shootTarget);
                 this.cooldown = this.fireRate;
             }
         }
+    }
+
+    findNearestBunker(bunkers) {
+        let closest = null;
+        let minDist = Infinity;
+
+        for (const bunker of bunkers) {
+            const dist = Math.hypot(bunker.x - this.x, bunker.y - this.y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = bunker;
+            }
+        }
+
+        return closest;
     }
 
     findTarget(enemies, maxRange) {

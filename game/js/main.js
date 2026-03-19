@@ -19,6 +19,10 @@ class Game {
         this.settingsOpen = false;
         this.settingsOpenedWhilePlaying = false;
         this.mobileControlsOpen = false;
+        this.isEditingMap = false;
+        this.customMapStorageKey = 'war-simulator-custom-map';
+        this.editorTool = 'rock';
+        this.customMapObjects = this.loadCustomMap();
 
         // Entities
         this.enemies = [];
@@ -30,6 +34,7 @@ class Game {
         this.trenches = [];
         this.repairBases = [];
         this.airports = [];
+        this.bunkers = [];
         this.soldiers = [];
         this.tanks = [];
         this.tankWrecks = [];
@@ -75,6 +80,13 @@ class Game {
 
         // Input Logic for Unit Placement
         const handleInput = (x, y, button = 0) => {
+            if (this.isEditingMap) {
+                if (button !== 2) {
+                    this.handleMapEditorInput(x, y);
+                }
+                return;
+            }
+
             if (!this.isPlaying || this.isPaused) return;
             if (this.awaitingNukeTarget) {
                 this.launchNukeAt(x, y);
@@ -101,6 +113,10 @@ class Game {
             if (isRightClick) return;
 
             if (this.collectSupplyCrateAt(x, y)) {
+                return;
+            }
+
+            if (this.isCustomMapBlockedAt(x, y)) {
                 return;
             }
 
@@ -154,6 +170,13 @@ class Game {
                 if (this.gold >= 180) {
                     this.airports.push(new Airport(x, y));
                     this.gold -= 180;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
+                }
+            } else if (this.selectedUnitType === 'bunker') {
+                if (this.gold >= 170) {
+                    this.bunkers.push(new Bunker(x, y));
+                    this.gold -= 170;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(e => console.log("Audio play failed:", e));
                 }
@@ -251,6 +274,9 @@ class Game {
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        if (this.isEditingMap) {
+            this.drawEditor();
+        }
     }
 
     start() {
@@ -356,7 +382,7 @@ class Game {
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers, ...this.enemyTanks, ...this.enemyPlanes];
-        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.rocketStations];
+        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.rocketStations, ...this.bunkers];
 
         this.radiationZones.forEach(zone => {
             zone.duration -= deltaTime;
@@ -465,7 +491,7 @@ class Game {
         // Update Soldiers
         const friendlyMovers = [...this.soldiers, ...this.tanks];
 
-        this.soldiers.forEach(s => s.update(hostileUnits, friendlyMovers, this.canvas.width, this.canvas.height));
+        this.soldiers.forEach(s => s.update(hostileUnits, friendlyMovers, this.bunkers, this.canvas.width, this.canvas.height));
         this.soldiers = this.soldiers.filter(s => !s.markedForDeletion);
 
         // Update Tanks
@@ -498,6 +524,10 @@ class Game {
         this.snipers.forEach(s => s.update(hostileUnits));
         this.snipers = this.snipers.filter(s => !s.markedForDeletion);
 
+        // Update Bunkers
+        this.bunkers.forEach(b => b.update(hostileUnits, this.soldiers, deltaTime));
+        this.bunkers = this.bunkers.filter(b => !b.markedForDeletion);
+
         // Update Artillery
         this.artilleryUnits.forEach(a => a.update(hostileUnits));
         this.artilleryUnits = this.artilleryUnits.filter(a => !a.markedForDeletion);
@@ -518,6 +548,7 @@ class Game {
     draw() {
         this.ctx.fillStyle = '#222';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawCustomMapObjects(this.ctx);
 
         this.enemies.forEach(e => e.draw(this.ctx));
         this.enemyArtilleryUnits.forEach(e => e.draw(this.ctx));
@@ -534,6 +565,7 @@ class Game {
         this.trenches.forEach(t => t.draw(this.ctx));
         this.repairBases.forEach(base => base.draw(this.ctx));
         this.airports.forEach(airport => airport.draw(this.ctx));
+        this.bunkers.forEach(bunker => bunker.draw(this.ctx));
         this.soldiers.forEach(s => s.draw(this.ctx));
         this.tankWrecks.forEach(wreck => wreck.draw(this.ctx));
         this.tanks.forEach(t => t.draw(this.ctx));
@@ -552,6 +584,135 @@ class Game {
         document.getElementById('wave-display').innerText = this.wave;
         document.getElementById('score-display').innerText = this.score;
         document.getElementById('enemy-resources-display').innerText = `${Math.round(this.enemyResources * 100)}%`;
+    }
+
+    loadCustomMap() {
+        try {
+            const raw = localStorage.getItem(this.customMapStorageKey);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+
+    saveCustomMap() {
+        localStorage.setItem(this.customMapStorageKey, JSON.stringify(this.customMapObjects));
+    }
+
+    openCustomMapEditor() {
+        this.isEditingMap = true;
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.drawEditor();
+    }
+
+    closeCustomMapEditor() {
+        this.isEditingMap = false;
+    }
+
+    setEditorTool(tool) {
+        this.editorTool = tool;
+        document.querySelectorAll('#custom-map-controls .unit-btn').forEach(btn => btn.classList.remove('selected'));
+        document.getElementById(`editor-${tool}-btn`).classList.add('selected');
+    }
+
+    handleMapEditorInput(x, y) {
+        const snapped = this.snapMapPoint(x, y);
+        const existingIndex = this.findCustomMapObjectIndex(snapped.x, snapped.y);
+
+        if (this.editorTool === 'erase') {
+            if (existingIndex >= 0) {
+                this.customMapObjects.splice(existingIndex, 1);
+            }
+        } else if (existingIndex === -1) {
+            this.customMapObjects.push({
+                type: this.editorTool,
+                x: snapped.x,
+                y: snapped.y
+            });
+        } else {
+            this.customMapObjects[existingIndex].type = this.editorTool;
+        }
+
+        this.drawEditor();
+    }
+
+    snapMapPoint(x, y) {
+        const cell = 64;
+        return {
+            x: Math.round(x / cell) * cell,
+            y: Math.round(y / cell) * cell
+        };
+    }
+
+    findCustomMapObjectIndex(x, y) {
+        return this.customMapObjects.findIndex(obj => Math.hypot(obj.x - x, obj.y - y) < 20);
+    }
+
+    isCustomMapBlockedAt(x, y) {
+        return this.customMapObjects.some(obj => Math.hypot(obj.x - x, obj.y - y) < 28);
+    }
+
+    drawEditor() {
+        this.ctx.fillStyle = '#24303a';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        this.ctx.lineWidth = 1;
+        for (let x = 0; x < this.canvas.width; x += 64) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.stroke();
+        }
+        for (let y = 0; y < this.canvas.height; y += 64) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.stroke();
+        }
+
+        this.drawCustomMapObjects(this.ctx);
+
+        this.ctx.fillStyle = '#d6ecff';
+        this.ctx.font = '16px Segoe UI';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('Map editor: click to place, choose a tile above, save when done.', 18, this.canvas.height - 20);
+    }
+
+    drawCustomMapObjects(ctx) {
+        this.customMapObjects.forEach(obj => this.drawCustomMapObject(ctx, obj));
+    }
+
+    drawCustomMapObject(ctx, obj) {
+        if (obj.type === 'rock') {
+            ctx.fillStyle = '#6c737c';
+            ctx.beginPath();
+            ctx.arc(obj.x, obj.y, 22, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#8d949d';
+            ctx.beginPath();
+            ctx.arc(obj.x - 6, obj.y - 6, 8, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+        }
+
+        if (obj.type === 'wall') {
+            ctx.fillStyle = '#8a6e55';
+            ctx.fillRect(obj.x - 28, obj.y - 12, 56, 24);
+            ctx.strokeStyle = '#d3bb91';
+            ctx.strokeRect(obj.x - 28, obj.y - 12, 56, 24);
+            return;
+        }
+
+        if (obj.type === 'bunker') {
+            ctx.fillStyle = '#4f5e4e';
+            ctx.fillRect(obj.x - 24, obj.y - 18, 48, 36);
+            ctx.fillStyle = '#273126';
+            ctx.fillRect(obj.x - 10, obj.y - 6, 20, 12);
+        }
     }
 
     drawRadiationZone(zone) {
@@ -763,6 +924,7 @@ class Game {
             { list: this.barbedWires, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.trenches, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
             { list: this.repairBases, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
+            { list: this.bunkers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 48, 36) },
             { list: this.tankSpawnTowers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
             { list: this.spawnTowers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 36, 36) },
             { list: this.towers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 30, 30) }
@@ -826,6 +988,7 @@ window.addEventListener('load', () => {
     const game = new Game();
 
     const startBtn = document.getElementById('start-btn');
+    const customMapBtn = document.getElementById('custom-map-btn');
     const restartBtn = document.getElementById('restart-btn');
     const menuBtn = document.getElementById('menu-btn');
     const resumeBtn = document.getElementById('resume-btn');
@@ -840,12 +1003,20 @@ window.addEventListener('load', () => {
     const gameSpeedSelect = document.getElementById('game-speed-select');
     const artillerySoundSelect = document.getElementById('artillery-sound-select');
     const mobileControlsToggle = document.getElementById('mobile-controls-toggle');
+    const editorRockBtn = document.getElementById('editor-rock-btn');
+    const editorWallBtn = document.getElementById('editor-wall-btn');
+    const editorBunkerBtn = document.getElementById('editor-bunker-btn');
+    const editorEraseBtn = document.getElementById('editor-erase-btn');
+    const editorSaveBtn = document.getElementById('editor-save-btn');
+    const editorPlayBtn = document.getElementById('editor-play-btn');
+    const editorBackBtn = document.getElementById('editor-back-btn');
 
     Artillery.setFireSound(artillerySoundSelect.value);
     EnemyArtillery.setFireSound(artillerySoundSelect.value);
 
-    startBtn.addEventListener('click', () => {
+    const beginBattle = () => {
         document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('custom-map-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
         document.getElementById('hud-actions').classList.remove('hidden');
         document.getElementById('controls').classList.remove('hidden');
@@ -855,7 +1026,18 @@ window.addEventListener('load', () => {
         document.getElementById('settings-screen').classList.add('hidden');
         game.mobileControlsOpen = !game.isMobileLayout();
         game.updateMobileControlsUI();
+        game.closeCustomMapEditor();
         game.start();
+    };
+
+    startBtn.addEventListener('click', () => {
+        beginBattle();
+    });
+
+    customMapBtn.addEventListener('click', () => {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('custom-map-screen').classList.remove('hidden');
+        game.openCustomMapEditor();
     });
 
     restartBtn.addEventListener('click', () => {
@@ -902,6 +1084,28 @@ window.addEventListener('load', () => {
         game.closeSettings();
     });
 
+    editorRockBtn.addEventListener('click', () => game.setEditorTool('rock'));
+    editorWallBtn.addEventListener('click', () => game.setEditorTool('wall'));
+    editorBunkerBtn.addEventListener('click', () => game.setEditorTool('bunker'));
+    editorEraseBtn.addEventListener('click', () => game.setEditorTool('erase'));
+
+    editorSaveBtn.addEventListener('click', () => {
+        game.saveCustomMap();
+        game.drawEditor();
+    });
+
+    editorPlayBtn.addEventListener('click', () => {
+        game.saveCustomMap();
+        beginBattle();
+    });
+
+    editorBackBtn.addEventListener('click', () => {
+        game.saveCustomMap();
+        game.closeCustomMapEditor();
+        document.getElementById('custom-map-screen').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+    });
+
     mobileControlsToggle.addEventListener('click', () => {
         game.toggleMobileControls();
     });
@@ -929,6 +1133,7 @@ window.addEventListener('load', () => {
     document.getElementById('btn-trench').addEventListener('click', () => setUnitType('trench'));
     document.getElementById('btn-repair-base').addEventListener('click', () => setUnitType('repair-base'));
     document.getElementById('btn-airport').addEventListener('click', () => setUnitType('airport'));
+    document.getElementById('btn-bunker').addEventListener('click', () => setUnitType('bunker'));
     document.getElementById('btn-soldier').addEventListener('click', () => setUnitType('soldier'));
     document.getElementById('btn-tank').addEventListener('click', () => setUnitType('tank'));
     document.getElementById('btn-plane').addEventListener('click', () => setUnitType('plane'));
