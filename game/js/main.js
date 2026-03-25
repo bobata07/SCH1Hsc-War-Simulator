@@ -60,6 +60,7 @@ class Game {
         this.snipers = [];
         this.artilleryUnits = [];
         this.drones = [];
+        this.kamikazeTrains = [];
         this.rocketStations = [];
         this.nuclearLaunchers = [];
         this.enemyArtilleryUnits = [];
@@ -263,6 +264,13 @@ class Game {
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
+            } else if (this.selectedUnitType === 'kamikaze-train') {
+                if (this.gold >= 210) {
+                    this.kamikazeTrains.push(new KamikazeTrain(x, y));
+                    this.gold -= 210;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                }
             } else if (this.selectedUnitType === 'rocket-station') {
                 if (this.gold >= 140) {
                     this.rocketStations.push(new RocketStation(x, y));
@@ -396,6 +404,7 @@ class Game {
         this.snipers = [];
         this.artilleryUnits = [];
         this.drones = [];
+        this.kamikazeTrains = [];
         this.rocketStations = [];
         this.nuclearLaunchers = [];
         this.enemyArtilleryUnits = [];
@@ -499,7 +508,7 @@ class Game {
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers, ...this.enemyTanks, ...this.enemyPlanes];
-        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.submarines, ...this.aircraftCarriers, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.rocketStations, ...this.bunkers];
+        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.submarines, ...this.aircraftCarriers, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.kamikazeTrains, ...this.rocketStations, ...this.bunkers];
 
         this.radiationZones.forEach(zone => {
             zone.duration -= deltaTime;
@@ -659,6 +668,10 @@ class Game {
         this.drones.forEach(d => d.update(hostileUnits, this.canvas.width, this.canvas.height));
         this.drones = this.drones.filter(d => !d.markedForDeletion);
 
+        // Update Kamikaze Trains
+        this.kamikazeTrains.forEach(train => train.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.kamikazeTrains = this.kamikazeTrains.filter(train => !train.markedForDeletion);
+
         // Update Rocket Stations
         this.rocketStations.forEach(r => r.update(this.enemyArtilleryUnits));
         this.rocketStations = this.rocketStations.filter(r => !r.markedForDeletion);
@@ -766,6 +779,7 @@ class Game {
         this.snipers.forEach(s => s.draw(this.ctx));
         this.artilleryUnits.forEach(a => a.draw(this.ctx));
         this.drones.forEach(d => d.draw(this.ctx));
+        this.kamikazeTrains.forEach(train => train.draw(this.ctx));
         this.rocketStations.forEach(r => r.draw(this.ctx));
         this.nuclearLaunchers.forEach(n => n.draw(this.ctx));
     }
@@ -1228,6 +1242,7 @@ class Game {
             { list: this.nuclearLaunchers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
             { list: this.artilleryUnits, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 32, 24) },
             { list: this.drones, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
+            { list: this.kamikazeTrains, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
             { list: this.planes, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.aircraftCarriers, hit: obj => obj.containsPoint(x, y) },
             { list: this.submarines, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, 24) },
@@ -1467,6 +1482,7 @@ window.addEventListener('load', () => {
     document.getElementById('btn-sniper').addEventListener('click', () => setUnitType('sniper'));
     document.getElementById('btn-artillery').addEventListener('click', () => setUnitType('artillery'));
     document.getElementById('btn-drone').addEventListener('click', () => setUnitType('drone'));
+    document.getElementById('btn-kamikaze-train').addEventListener('click', () => setUnitType('kamikaze-train'));
     document.getElementById('btn-rocket-station').addEventListener('click', () => setUnitType('rocket-station'));
     document.getElementById('btn-launch-rockets').addEventListener('click', () => game.launchRockets());
     document.getElementById('btn-nuclear-launcher').addEventListener('click', () => setUnitType('nuclear-launcher'));
@@ -1482,4 +1498,3 @@ window.addEventListener('load', () => {
         game.updateMobileControlsUI();
     });
 });
-
