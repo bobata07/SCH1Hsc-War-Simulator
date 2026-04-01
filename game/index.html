@@ -25,31 +25,14 @@
 
         <div id="event-banner" class="hidden"></div>
 
-        <button id="mobile-controls-toggle" class="action-btn hidden">Deploy</button>
+        <button id="mobile-controls-toggle" class="action-btn hidden">Cards</button>
 
         <div id="controls" class="hidden">
-            <button id="btn-tower" class="unit-btn selected" data-map-mode="land">Tower (50g)</button>
-            <button id="btn-spawn-tower" class="unit-btn" data-map-mode="land">Spawn Tower (90g)</button>
-            <button id="btn-tank-spawn-tower" class="unit-btn" data-map-mode="land">Tank Tower (220g)</button>
-            <button id="btn-barbed-wire" class="unit-btn" data-map-mode="land">Barbed Wire (40g)</button>
-            <button id="btn-trench" class="unit-btn" data-map-mode="land">Trench (60g)</button>
-            <button id="btn-repair-base" class="unit-btn" data-map-mode="land">Repair Base (130g)</button>
-            <button id="btn-airport" class="unit-btn" data-map-mode="land">Airport (180g)</button>
-            <button id="btn-bunker" class="unit-btn" data-map-mode="land">Bunker (170g)</button>
-            <button id="btn-soldier" class="unit-btn" data-map-mode="land">Soldier (30g)</button>
-            <button id="btn-tank" class="unit-btn" data-map-mode="land">Tank (150g)</button>
-            <button id="btn-plane" class="unit-btn" data-map-mode="land">Plane (160g)</button>
-            <button id="btn-bulldozer" class="unit-btn" data-map-mode="land">Bulldozer (95g)</button>
-            <button id="btn-sniper" class="unit-btn" data-map-mode="land">Sniper (80g)</button>
-            <button id="btn-artillery" class="unit-btn" data-map-mode="land">Artillery (120g)</button>
-            <button id="btn-drone" class="unit-btn" data-map-mode="land">Drone (110g)</button>
-            <button id="btn-kamikaze-train" class="unit-btn" data-map-mode="land">Kamikaze Train (210g)</button>
-            <button id="btn-submarine" class="unit-btn hidden" data-map-mode="ocean">Submarine (140g)</button>
-            <button id="btn-aircraft-carrier" class="unit-btn hidden" data-map-mode="ocean">Aircraft Carrier (260g)</button>
-            <button id="btn-rocket-station" class="unit-btn" data-map-mode="land">Rocket Station (140g)</button>
-            <button id="btn-nuclear-launcher" class="unit-btn">Nuclear Launcher (400g)</button>
-            <button id="btn-launch-rockets" class="action-btn">Launch Rocket</button>
-            <button id="btn-launch-nuke" class="action-btn">Launch Nuke</button>
+            <div id="deck-controls" class="card-strip"></div>
+            <div id="combat-actions" class="action-strip">
+                <button id="btn-launch-rockets" class="action-btn">Launch Rocket</button>
+                <button id="btn-launch-nuke" class="action-btn">Launch Nuke</button>
+            </div>
         </div>
 
         <div id="start-screen" class="screen">
@@ -62,6 +45,33 @@
             <button id="start-settings-btn" class="btn secondary-btn">Settings</button>
             <div class="controls-hint">
                 <p>Controls: Mouse to place towers, ESC to pause</p>
+            </div>
+        </div>
+
+        <div id="deck-lobby-screen" class="screen hidden">
+            <div class="lobby-shell">
+                <h1>Deck Lobby</h1>
+                <p id="deck-lobby-subtitle">Build a 6-card weapon deck for the next battle.</p>
+                <div class="deck-lobby-grid">
+                    <section class="deck-panel">
+                        <div class="panel-heading">
+                            <h2>Your Deck</h2>
+                            <span id="deck-count-display">0 / 6</span>
+                        </div>
+                        <div id="deck-slots" class="deck-slots"></div>
+                    </section>
+                    <section class="deck-panel">
+                        <div class="panel-heading">
+                            <h2>Lobby Cards</h2>
+                            <span>Click a card to add it</span>
+                        </div>
+                        <div id="lobby-card-list" class="lobby-card-list"></div>
+                    </section>
+                </div>
+                <div class="lobby-actions">
+                    <button id="lobby-start-btn" class="btn">Start Battle</button>
+                    <button id="lobby-back-btn" class="btn secondary-btn">Back</button>
+                </div>
             </div>
         </div>
 

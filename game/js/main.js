@@ -35,9 +35,13 @@ class Game {
         this.mobileControlsOpen = false;
         this.isEditingMap = false;
         this.customMapStorageKey = 'war-simulator-custom-map';
+        this.deckStorageKey = 'war-simulator-player-deck';
+        this.maxDeckSize = 6;
         this.customMapMode = 'land';
         this.editorTool = 'rock';
         this.customMapObjects = this.loadCustomMap();
+        this.cardDefinitions = this.createCardDefinitions();
+        this.playerDeck = this.loadDeck();
 
         // Entities
         this.enemies = [];
@@ -71,7 +75,7 @@ class Game {
         this.enemyAircraftCarriers = [];
         this.radiationZones = [];
         this.supplyCrates = [];
-        this.selectedUnitType = 'tower';
+        this.selectedUnitType = this.playerDeck[0] || null;
         this.awaitingNukeTarget = false;
         this.maxFriendlySoldiers = 120;
         this.maxEnemySoldiers = 140;
@@ -784,6 +788,189 @@ class Game {
         this.nuclearLaunchers.forEach(n => n.draw(this.ctx));
     }
 
+    createCardDefinitions() {
+        return [
+            { type: 'tower', title: 'Tower', cost: 50, mapModes: ['land'], summary: 'Cheap frontline turret.' },
+            { type: 'spawn-tower', title: 'Spawn Tower', cost: 90, mapModes: ['land'], summary: 'Produces supporting troops.' },
+            { type: 'tank-spawn-tower', title: 'Tank Tower', cost: 220, mapModes: ['land'], summary: 'Heavy armor production point.' },
+            { type: 'barbed-wire', title: 'Barbed Wire', cost: 40, mapModes: ['land'], summary: 'Slows enemy pushes.' },
+            { type: 'trench', title: 'Trench', cost: 60, mapModes: ['land'], summary: 'Creates infantry cover.' },
+            { type: 'repair-base', title: 'Repair Base', cost: 130, mapModes: ['land'], summary: 'Restores nearby allies.' },
+            { type: 'airport', title: 'Airport', cost: 180, mapModes: ['land'], summary: 'Required before planes can launch.' },
+            { type: 'bunker', title: 'Bunker', cost: 170, mapModes: ['land'], summary: 'Durable defense node.' },
+            { type: 'soldier', title: 'Soldier', cost: 30, mapModes: ['land'], summary: 'Low-cost infantry.' },
+            { type: 'tank', title: 'Tank', cost: 150, mapModes: ['land'], summary: 'Heavy direct fire unit.' },
+            { type: 'plane', title: 'Plane', cost: 160, mapModes: ['land'], summary: 'Right-click an airport to launch one.' },
+            { type: 'bulldozer', title: 'Bulldozer', cost: 95, mapModes: ['land'], summary: 'Utility vehicle for the front line.' },
+            { type: 'sniper', title: 'Sniper', cost: 80, mapModes: ['land'], summary: 'Long-range precision unit.' },
+            { type: 'artillery', title: 'Artillery', cost: 120, mapModes: ['land'], summary: 'Ranged explosive support.' },
+            { type: 'drone', title: 'Drone', cost: 110, mapModes: ['land'], summary: 'Fast airborne harassment.' },
+            { type: 'kamikaze-train', title: 'Kamikaze Train', cost: 210, mapModes: ['land'], summary: 'High-risk burst attack.' },
+            { type: 'rocket-station', title: 'Rocket Station', cost: 140, mapModes: ['land'], summary: 'Unlocks rocket strikes.' },
+            { type: 'nuclear-launcher', title: 'Nuclear Launcher', cost: 400, mapModes: ['land'], summary: 'Unlocks tactical nukes.' },
+            { type: 'submarine', title: 'Submarine', cost: 140, mapModes: ['ocean'], summary: 'Stealth naval attacker.' },
+            { type: 'aircraft-carrier', title: 'Aircraft Carrier', cost: 260, mapModes: ['ocean'], summary: 'Capital ship with planes.' }
+        ];
+    }
+
+    getCardDefinition(type) {
+        return this.cardDefinitions.find(card => card.type === type) || null;
+    }
+
+    getDefaultDeck() {
+        return ['tower', 'spawn-tower', 'soldier', 'tank', 'artillery', 'rocket-station'];
+    }
+
+    loadDeck() {
+        try {
+            const raw = localStorage.getItem(this.deckStorageKey);
+            if (!raw) return this.getDefaultDeck();
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return this.getDefaultDeck();
+
+            const validDeck = parsed
+                .filter(type => typeof type === 'string' && this.getCardDefinition(type))
+                .slice(0, this.maxDeckSize);
+
+            return validDeck.length ? validDeck : this.getDefaultDeck();
+        } catch {
+            return this.getDefaultDeck();
+        }
+    }
+
+    saveDeck() {
+        localStorage.setItem(this.deckStorageKey, JSON.stringify(this.playerDeck));
+    }
+
+    getCardModeLabel(card) {
+        if (card.mapModes.length > 1) return 'All Maps';
+        return card.mapModes[0] === 'ocean' ? 'Ocean' : 'Land';
+    }
+
+    isCardCompatibleWithMode(type, mode = this.customMapMode) {
+        const card = this.getCardDefinition(type);
+        return Boolean(card && card.mapModes.includes(mode));
+    }
+
+    addCardToDeck(type) {
+        if (!this.getCardDefinition(type) || this.playerDeck.length >= this.maxDeckSize) {
+            return false;
+        }
+
+        this.playerDeck.push(type);
+        this.saveDeck();
+        this.renderDeckLobby();
+        this.updateAvailableUnitsUI();
+        return true;
+    }
+
+    removeCardFromDeck(index) {
+        if (index < 0 || index >= this.playerDeck.length) {
+            return false;
+        }
+
+        const [removedType] = this.playerDeck.splice(index, 1);
+        if (removedType === this.selectedUnitType && !this.playerDeck.includes(removedType)) {
+            this.selectedUnitType = null;
+        }
+
+        this.saveDeck();
+        this.renderDeckLobby();
+        this.updateAvailableUnitsUI();
+        return true;
+    }
+
+    renderDeckLobby() {
+        const subtitle = document.getElementById('deck-lobby-subtitle');
+        const deckCount = document.getElementById('deck-count-display');
+        const deckSlots = document.getElementById('deck-slots');
+        const lobbyCardList = document.getElementById('lobby-card-list');
+        const lobbyStartBtn = document.getElementById('lobby-start-btn');
+
+        if (!subtitle || !deckCount || !deckSlots || !lobbyCardList || !lobbyStartBtn) {
+            return;
+        }
+
+        subtitle.textContent = `Build a 6-card weapon deck for the next ${this.customMapMode} battle.`;
+        deckCount.textContent = `${this.playerDeck.length} / ${this.maxDeckSize}`;
+        deckSlots.innerHTML = '';
+
+        for (let i = 0; i < this.maxDeckSize; i++) {
+            const type = this.playerDeck[i];
+            if (!type) {
+                const emptySlot = document.createElement('article');
+                emptySlot.className = 'deck-slot empty';
+                emptySlot.innerHTML = `<strong>Empty Slot</strong><span>Add a weapon card from the lobby list.</span>`;
+                deckSlots.appendChild(emptySlot);
+                continue;
+            }
+
+            const card = this.getCardDefinition(type);
+            if (!card) continue;
+
+            const slot = document.createElement('article');
+            slot.className = 'deck-slot';
+            slot.innerHTML = `
+                <span class="map-badge">${this.getCardModeLabel(card)}</span>
+                <strong>${card.title}</strong>
+                <span class="card-cost">${card.cost}g</span>
+                <span class="card-tag">${card.summary}</span>
+                <div class="deck-slot-footer">
+                    <span>Slot ${i + 1}</span>
+                    <button type="button" class="mini-btn" data-remove-deck-index="${i}">Remove</button>
+                </div>
+            `;
+            deckSlots.appendChild(slot);
+        }
+
+        lobbyCardList.innerHTML = '';
+        this.cardDefinitions.forEach(card => {
+            const cardEl = document.createElement('article');
+            const deckIsFull = this.playerDeck.length >= this.maxDeckSize;
+            cardEl.className = `lobby-card${deckIsFull ? ' disabled' : ''}`;
+            cardEl.innerHTML = `
+                <span class="map-badge">${this.getCardModeLabel(card)}</span>
+                <strong>${card.title}</strong>
+                <span class="card-cost">${card.cost}g</span>
+                <span class="card-tag">${card.summary}</span>
+                <div class="lobby-card-footer">
+                    <span>${card.mapModes.includes(this.customMapMode) ? 'Ready on this map' : 'Not active on this map'}</span>
+                    <button type="button" class="mini-btn" data-add-card="${card.type}" ${deckIsFull ? 'disabled' : ''}>Add Card</button>
+                </div>
+            `;
+            lobbyCardList.appendChild(cardEl);
+        });
+
+        lobbyStartBtn.disabled = this.playerDeck.length !== this.maxDeckSize;
+    }
+
+    renderCombatDeck() {
+        const deckControls = document.getElementById('deck-controls');
+        if (!deckControls) return;
+
+        deckControls.innerHTML = '';
+
+        this.playerDeck.forEach((type, index) => {
+            const card = this.getCardDefinition(type);
+            if (!card) return;
+
+            const compatible = this.isCardCompatibleWithMode(type);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `unit-btn card-btn${type === this.selectedUnitType && compatible ? ' selected' : ''}${compatible ? '' : ' inactive'}`;
+            button.dataset.unitType = type;
+            button.dataset.deckIndex = index;
+            button.disabled = !compatible;
+            button.innerHTML = `
+                <strong>${card.title}</strong>
+                <span class="card-cost">${card.cost}g</span>
+                <span class="card-tag">${compatible ? card.summary : `Only available on ${this.getCardModeLabel(card).toLowerCase()} maps.`}</span>
+            `;
+            deckControls.appendChild(button);
+        });
+    }
+
     updateHUD() {
         document.getElementById('health-display').innerText = this.lives;
         document.getElementById('gold-display').innerText = this.gold;
@@ -858,23 +1045,12 @@ class Game {
     }
 
     updateAvailableUnitsUI() {
-        const buttons = document.querySelectorAll('#controls [data-map-mode]');
-        buttons.forEach(button => {
-            const mode = button.dataset.mapMode;
-            const shouldShow = mode === this.customMapMode;
-            button.classList.toggle('hidden', !shouldShow);
-        });
-
-        const selectedButton = document.getElementById(`btn-${this.selectedUnitType}`);
-        if (!selectedButton || selectedButton.classList.contains('hidden')) {
-            this.selectedUnitType = this.customMapMode === 'ocean' ? 'submarine' : 'tower';
+        const playableTypes = this.playerDeck.filter(type => this.isCardCompatibleWithMode(type));
+        if (!this.selectedUnitType || !playableTypes.includes(this.selectedUnitType)) {
+            this.selectedUnitType = playableTypes[0] || null;
         }
 
-        document.querySelectorAll('#controls .unit-btn').forEach(btn => btn.classList.remove('selected'));
-        const currentButton = document.getElementById(`btn-${this.selectedUnitType}`);
-        if (currentButton && !currentButton.classList.contains('hidden')) {
-            currentButton.classList.add('selected');
-        }
+        this.renderCombatDeck();
     }
 
     handleMapEditorInput(x, y) {
@@ -1039,12 +1215,13 @@ class Game {
     }
 
     setUnitType(type) {
-        this.selectedUnitType = type;
-        document.querySelectorAll('#controls .unit-btn').forEach(btn => btn.classList.remove('selected'));
-        const button = document.getElementById(`btn-${type}`);
-        if (button && !button.classList.contains('hidden')) {
-            button.classList.add('selected');
+        if (!this.playerDeck.includes(type) || !this.isCardCompatibleWithMode(type)) {
+            return false;
         }
+
+        this.selectedUnitType = type;
+        this.renderCombatDeck();
+        return true;
     }
 
     togglePause() {
@@ -1081,14 +1258,14 @@ class Game {
     cycleVisibleUnitSelection(direction) {
         if (!this.isPlaying || this.isPaused) return;
 
-        const buttons = [...document.querySelectorAll('#controls .unit-btn:not(.hidden)')];
+        const buttons = [...document.querySelectorAll('#deck-controls .unit-btn:not(:disabled)')];
         if (!buttons.length) return;
 
-        const currentIndex = buttons.findIndex(button => button.id === `btn-${this.selectedUnitType}`);
+        const currentIndex = buttons.findIndex(button => button.dataset.unitType === this.selectedUnitType);
         const nextIndex = currentIndex === -1
             ? 0
             : (currentIndex + direction + buttons.length) % buttons.length;
-        const nextType = buttons[nextIndex].id.replace('btn-', '');
+        const nextType = buttons[nextIndex].dataset.unitType;
         this.setUnitType(nextType);
     }
 
@@ -1108,7 +1285,7 @@ class Game {
 
         mobileToggle.classList.remove('hidden');
         controls.classList.toggle('mobile-collapsed', !this.mobileControlsOpen);
-        mobileToggle.textContent = this.mobileControlsOpen ? 'Hide Build' : 'Deploy';
+        mobileToggle.textContent = this.mobileControlsOpen ? 'Hide Cards' : 'Cards';
     }
 
     toggleMobileControls(forceOpen = null) {
@@ -1316,6 +1493,15 @@ class Game {
 window.addEventListener('load', () => {
     const game = new Game();
 
+    const startScreen = document.getElementById('start-screen');
+    const deckLobbyScreen = document.getElementById('deck-lobby-screen');
+    const customMapScreen = document.getElementById('custom-map-screen');
+    const controls = document.getElementById('controls');
+    const deckControls = document.getElementById('deck-controls');
+    const deckSlots = document.getElementById('deck-slots');
+    const lobbyCardList = document.getElementById('lobby-card-list');
+    const lobbyStartBtn = document.getElementById('lobby-start-btn');
+    const lobbyBackBtn = document.getElementById('lobby-back-btn');
     const startBtn = document.getElementById('start-btn');
     const customMapBtn = document.getElementById('custom-map-btn');
     const restartBtn = document.getElementById('restart-btn');
@@ -1342,20 +1528,47 @@ window.addEventListener('load', () => {
     const editorSaveBtn = document.getElementById('editor-save-btn');
     const editorPlayBtn = document.getElementById('editor-play-btn');
     const editorBackBtn = document.getElementById('editor-back-btn');
+    let lobbyReturnScreen = 'start';
 
     Artillery.setFireSound(artillerySoundSelect.value);
     EnemyArtillery.setFireSound(artillerySoundSelect.value);
 
-    const beginBattle = () => {
-        document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('custom-map-screen').classList.add('hidden');
-        document.getElementById('hud').classList.remove('hidden');
-        document.getElementById('hud-actions').classList.remove('hidden');
-        document.getElementById('controls').classList.remove('hidden');
+    const hideFrontScreens = () => {
+        startScreen.classList.add('hidden');
+        deckLobbyScreen.classList.add('hidden');
+        customMapScreen.classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('victory-screen').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('settings-screen').classList.add('hidden');
+    };
+
+    const openDeckLobby = (returnScreen = 'start') => {
+        lobbyReturnScreen = returnScreen;
+        hideFrontScreens();
+        controls.classList.add('hidden');
+        document.getElementById('hud').classList.add('hidden');
+        document.getElementById('hud-actions').classList.add('hidden');
+        document.getElementById('mobile-controls-toggle').classList.add('hidden');
+
+        if (returnScreen === 'custom-map') {
+            game.closeCustomMapEditor();
+        }
+
+        game.renderDeckLobby();
+        deckLobbyScreen.classList.remove('hidden');
+    };
+
+    const beginBattle = () => {
+        if (game.playerDeck.length !== game.maxDeckSize) {
+            game.renderDeckLobby();
+            return;
+        }
+
+        hideFrontScreens();
+        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('hud-actions').classList.remove('hidden');
+        controls.classList.remove('hidden');
         game.mobileControlsOpen = !game.isMobileLayout();
         game.updateAvailableUnitsUI();
         game.updateMobileControlsUI();
@@ -1364,12 +1577,12 @@ window.addEventListener('load', () => {
     };
 
     startBtn.addEventListener('click', () => {
-        beginBattle();
+        openDeckLobby('start');
     });
 
     customMapBtn.addEventListener('click', () => {
-        document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('custom-map-screen').classList.remove('hidden');
+        hideFrontScreens();
+        customMapScreen.classList.remove('hidden');
         game.openCustomMapEditor();
     });
 
@@ -1435,14 +1648,30 @@ window.addEventListener('load', () => {
 
     editorPlayBtn.addEventListener('click', () => {
         game.saveCustomMap();
-        beginBattle();
+        openDeckLobby('custom-map');
     });
 
     editorBackBtn.addEventListener('click', () => {
         game.saveCustomMap();
         game.closeCustomMapEditor();
-        document.getElementById('custom-map-screen').classList.add('hidden');
-        document.getElementById('start-screen').classList.remove('hidden');
+        customMapScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    });
+
+    lobbyStartBtn.addEventListener('click', () => {
+        beginBattle();
+    });
+
+    lobbyBackBtn.addEventListener('click', () => {
+        deckLobbyScreen.classList.add('hidden');
+
+        if (lobbyReturnScreen === 'custom-map') {
+            customMapScreen.classList.remove('hidden');
+            game.openCustomMapEditor();
+            return;
+        }
+
+        startScreen.classList.remove('hidden');
     });
 
     mobileControlsToggle.addEventListener('click', () => {
@@ -1459,33 +1688,31 @@ window.addEventListener('load', () => {
     });
 
     const setUnitType = (type) => {
-        game.setUnitType(type);
-        if (game.isMobileLayout()) {
+        const didSet = game.setUnitType(type);
+        if (didSet && game.isMobileLayout()) {
             game.toggleMobileControls(false);
         }
     };
 
-    document.getElementById('btn-tower').addEventListener('click', () => setUnitType('tower'));
-    document.getElementById('btn-spawn-tower').addEventListener('click', () => setUnitType('spawn-tower'));
-    document.getElementById('btn-tank-spawn-tower').addEventListener('click', () => setUnitType('tank-spawn-tower'));
-    document.getElementById('btn-barbed-wire').addEventListener('click', () => setUnitType('barbed-wire'));
-    document.getElementById('btn-trench').addEventListener('click', () => setUnitType('trench'));
-    document.getElementById('btn-repair-base').addEventListener('click', () => setUnitType('repair-base'));
-    document.getElementById('btn-airport').addEventListener('click', () => setUnitType('airport'));
-    document.getElementById('btn-bunker').addEventListener('click', () => setUnitType('bunker'));
-    document.getElementById('btn-soldier').addEventListener('click', () => setUnitType('soldier'));
-    document.getElementById('btn-tank').addEventListener('click', () => setUnitType('tank'));
-    document.getElementById('btn-plane').addEventListener('click', () => setUnitType('plane'));
-    document.getElementById('btn-submarine').addEventListener('click', () => setUnitType('submarine'));
-    document.getElementById('btn-aircraft-carrier').addEventListener('click', () => setUnitType('aircraft-carrier'));
-    document.getElementById('btn-bulldozer').addEventListener('click', () => setUnitType('bulldozer'));
-    document.getElementById('btn-sniper').addEventListener('click', () => setUnitType('sniper'));
-    document.getElementById('btn-artillery').addEventListener('click', () => setUnitType('artillery'));
-    document.getElementById('btn-drone').addEventListener('click', () => setUnitType('drone'));
-    document.getElementById('btn-kamikaze-train').addEventListener('click', () => setUnitType('kamikaze-train'));
-    document.getElementById('btn-rocket-station').addEventListener('click', () => setUnitType('rocket-station'));
+    deckControls.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-unit-type]');
+        if (!button) return;
+        setUnitType(button.dataset.unitType);
+    });
+
+    lobbyCardList.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-add-card]');
+        if (!button) return;
+        game.addCardToDeck(button.dataset.addCard);
+    });
+
+    deckSlots.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-deck-index]');
+        if (!button) return;
+        game.removeCardFromDeck(Number(button.dataset.removeDeckIndex));
+    });
+
     document.getElementById('btn-launch-rockets').addEventListener('click', () => game.launchRockets());
-    document.getElementById('btn-nuclear-launcher').addEventListener('click', () => setUnitType('nuclear-launcher'));
     document.getElementById('btn-launch-nuke').addEventListener('click', () => game.armNukeLaunch());
 
     window.addEventListener('resize', () => {
@@ -1497,4 +1724,7 @@ window.addEventListener('load', () => {
 
         game.updateMobileControlsUI();
     });
+
+    game.renderDeckLobby();
+    game.updateAvailableUnitsUI();
 });
