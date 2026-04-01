@@ -46,8 +46,7 @@ class Soldier {
             this.applySeparation(allies);
         }
 
-        this.x = Math.max(this.radius, Math.min(fieldWidth - this.radius, this.x));
-        this.y = Math.max(this.radius, Math.min(fieldHeight - this.radius, this.y));
+        this.clampToBattlefield(fieldWidth, fieldHeight);
 
         if (!this.healingInBunker && this.cooldown <= 0) {
             const shootTarget = this.findTarget(enemies, this.range);
@@ -98,9 +97,10 @@ class Soldier {
     }
 
     getAttackPoint(target) {
+        const bounds = this.getBattleBounds(window.innerWidth, window.innerHeight);
         return {
             x: target.x + Math.cos(this.formationAngle) * this.formationDistance,
-            y: target.y + Math.sin(this.formationAngle) * this.formationDistance
+            y: this.clampY(target.y + Math.sin(this.formationAngle) * this.formationDistance, bounds)
         };
     }
 
@@ -144,6 +144,49 @@ class Soldier {
         this.y += (dy / dist) * travel;
     }
 
+    isMobileBattlefield(fieldWidth) {
+        return fieldWidth <= 900;
+    }
+
+    getBattleBounds(fieldWidth, fieldHeight) {
+        const fallbackTop = this.isMobileBattlefield(fieldWidth) ? 48 : this.radius;
+        const fallbackBottom = this.isMobileBattlefield(fieldWidth) ? fieldHeight - 132 : fieldHeight - this.radius;
+        let top = fallbackTop;
+        let bottom = fallbackBottom;
+
+        if (typeof document !== 'undefined') {
+            const hud = document.getElementById('hud');
+            const controls = document.getElementById('controls');
+            const toggle = document.getElementById('mobile-controls-toggle');
+
+            if (hud && !hud.classList.contains('hidden')) {
+                const hudRect = hud.getBoundingClientRect();
+                top = Math.max(top, hudRect.bottom + this.radius);
+            }
+
+            if (controls && !controls.classList.contains('hidden') && !controls.classList.contains('mobile-collapsed')) {
+                const controlsRect = controls.getBoundingClientRect();
+                bottom = Math.min(bottom, controlsRect.top - this.radius - 6);
+            } else if (toggle && !toggle.classList.contains('hidden')) {
+                const toggleRect = toggle.getBoundingClientRect();
+                bottom = Math.min(bottom, toggleRect.top - this.radius - 6);
+            }
+        }
+
+        bottom = Math.max(top + this.radius * 2, bottom);
+        return { top, bottom };
+    }
+
+    clampY(y, bounds) {
+        return Math.max(bounds.top, Math.min(bounds.bottom, y));
+    }
+
+    clampToBattlefield(fieldWidth, fieldHeight) {
+        const bounds = this.getBattleBounds(fieldWidth, fieldHeight);
+        this.x = Math.max(this.radius, Math.min(fieldWidth - this.radius, this.x));
+        this.y = this.clampY(this.y, bounds);
+    }
+
     takeDamage(amount) {
         this.health -= amount;
         if (this.health <= 0) {
@@ -166,4 +209,3 @@ class Soldier {
         this.projectiles.forEach(p => p.draw(ctx));
     }
 }
-

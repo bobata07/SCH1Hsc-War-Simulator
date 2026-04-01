@@ -19,6 +19,30 @@ canvas {
     touch-action: none;
 }
 
+#orientation-screen {
+    z-index: 50;
+    background:
+        radial-gradient(circle at top, rgba(80, 125, 88, 0.25), transparent 38%),
+        rgba(5, 10, 14, 0.96);
+    text-align: center;
+    padding: 24px;
+}
+
+.orientation-panel {
+    width: min(540px, 100%);
+    padding: 28px 24px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(17, 24, 30, 0.94);
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.42);
+}
+
+.orientation-hint {
+    color: #c9dce8;
+    font-size: 1.05rem;
+    margin-bottom: 0;
+}
+
 #ui-layer {
     position: absolute;
     top: 0;
@@ -95,6 +119,7 @@ canvas {
     position: absolute;
     top: 80px;
     left: 10px;
+    max-width: calc(100% - 20px);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -110,6 +135,7 @@ canvas {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
+    align-items: stretch;
 }
 
 #mobile-controls-toggle {
@@ -150,8 +176,9 @@ canvas {
 }
 
 .card-btn {
-    min-width: 148px;
-    min-height: 92px;
+    min-width: 128px;
+    min-height: 82px;
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -166,12 +193,17 @@ canvas {
 .lobby-card strong,
 .deck-slot strong {
     font-size: 1rem;
+    line-height: 1.15;
 }
 
 .card-cost,
 .card-tag {
     font-size: 0.85rem;
     opacity: 0.85;
+}
+
+.card-btn .card-tag {
+    line-height: 1.2;
 }
 
 .card-btn.inactive {
@@ -259,10 +291,14 @@ p {
 #deck-lobby-screen {
     padding: 36px 18px;
     overflow-y: auto;
+    align-items: stretch;
 }
 
 .lobby-shell {
     width: min(1160px, 100%);
+    margin: auto;
+    max-height: 100%;
+    overflow-y: auto;
     padding: 26px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 24px;
@@ -421,37 +457,36 @@ p {
     #hud {
         top: 8px;
         left: 8px;
-        right: 140px;
-        padding: 8px 10px;
-        gap: 8px 12px;
-        font-size: 0.9rem;
+        right: 104px;
+        padding: 6px 8px;
+        gap: 6px 10px;
+        font-size: 0.78rem;
         flex-wrap: wrap;
     }
 
     #hud-actions {
         top: 8px;
         right: 8px;
-        gap: 8px;
+        gap: 6px;
     }
 
     .hud-btn {
-        padding: 10px 12px;
-        font-size: 0.95rem;
+        padding: 8px 10px;
+        font-size: 0.82rem;
     }
 
     #controls {
         top: auto;
-        left: 0;
-        right: 0;
-        bottom: 64px;
-        margin: 0 8px;
-        padding: 12px;
-        gap: 10px;
-        border-radius: 14px;
-        background-color: rgba(7, 12, 18, 0.92);
-        overflow-x: auto;
-        overflow-y: hidden;
-        flex-wrap: nowrap;
+        left: 8px;
+        right: 8px;
+        bottom: 54px;
+        max-width: none;
+        margin: 0;
+        padding: 8px;
+        gap: 8px;
+        border-radius: 12px;
+        background-color: rgba(7, 12, 18, 0.88);
+        overflow: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
@@ -460,6 +495,19 @@ p {
     .card-strip,
     .action-strip {
         flex-wrap: nowrap;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px;
+    }
+
+    .card-strip::-webkit-scrollbar,
+    .action-strip::-webkit-scrollbar,
+    .lobby-shell::-webkit-scrollbar,
+    .lobby-card-list::-webkit-scrollbar {
+        display: none;
     }
 
     #controls.mobile-collapsed {
@@ -467,43 +515,63 @@ p {
     }
 
     #mobile-controls-toggle {
-        min-width: 110px;
-        padding: 12px 18px;
-        font-size: 1rem;
+        min-width: 84px;
+        padding: 10px 14px;
+        font-size: 0.9rem;
     }
 
     .unit-btn,
     .action-btn {
-        min-width: 132px;
-        min-height: 52px;
+        min-width: 100px;
+        min-height: 42px;
+        padding: 8px 10px;
         white-space: nowrap;
         flex: 0 0 auto;
     }
 
     .card-btn {
-        min-width: 150px;
-        min-height: 96px;
+        min-width: 104px;
+        min-height: 62px;
+        padding: 7px 9px;
+        gap: 4px;
+    }
+
+    .card-btn strong {
+        font-size: 0.82rem;
+    }
+
+    .card-btn .card-cost {
+        font-size: 0.72rem;
+    }
+
+    .card-btn .card-tag {
+        display: none;
     }
 
     .screen {
-        padding: 24px 16px;
+        padding: 18px 12px;
         text-align: center;
     }
 
+    .orientation-panel {
+        padding: 22px 18px;
+        border-radius: 18px;
+    }
+
     h1 {
-        font-size: 2.2rem;
-        margin-bottom: 14px;
+        font-size: 1.9rem;
+        margin-bottom: 12px;
     }
 
     p {
-        font-size: 1.05rem;
-        margin-bottom: 18px;
+        font-size: 0.96rem;
+        margin-bottom: 14px;
     }
 
     .btn {
         width: min(320px, 100%);
-        padding: 14px 20px;
-        font-size: 1.2rem;
+        padding: 12px 16px;
+        font-size: 1rem;
     }
 
     .settings-panel {
@@ -518,24 +586,60 @@ p {
     }
 
     .lobby-shell {
-        padding: 18px;
+        padding: 14px;
+        border-radius: 18px;
     }
 
     .deck-lobby-grid {
         grid-template-columns: 1fr;
+        gap: 14px;
     }
 
     .deck-slots {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
 
     .lobby-card-list {
         grid-template-columns: 1fr;
         max-height: none;
+        gap: 10px;
     }
 
     .panel-heading {
         flex-direction: column;
         align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .deck-panel {
+        padding: 14px;
+        border-radius: 14px;
+    }
+
+    .deck-slot,
+    .lobby-card {
+        min-height: 92px;
+        padding: 12px;
+        gap: 6px;
+    }
+
+    .deck-slot strong,
+    .lobby-card strong {
+        font-size: 0.92rem;
+    }
+
+    .deck-slot-footer,
+    .lobby-card-footer {
+        font-size: 0.78rem;
+    }
+
+    .mini-btn {
+        padding: 7px 10px;
+        font-size: 0.8rem;
+    }
+
+    .map-badge {
+        font-size: 0.72rem;
     }
 }

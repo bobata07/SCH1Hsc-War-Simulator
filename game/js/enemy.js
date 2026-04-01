@@ -129,7 +129,7 @@ class EnemyRetreatState extends State {
             };
 
         entity.moveToward(retreatPoint.x, retreatPoint.y, 2);
-        entity.y = Math.max(60, Math.min(entity.fieldHeight - 60, entity.y));
+        entity.clampToBattlefield();
 
         if (entity.health <= 0) {
             entity.stateMachine.changeState(Enemy.states.DEAD);
@@ -166,11 +166,11 @@ class Enemy {
 
     constructor(width, height) {
         this.x = width + 30;
-        this.y = 80 + Math.random() * Math.max(120, height - 160);
-        this.spawnX = this.x;
-        this.spawnY = this.y;
         this.fieldWidth = width;
         this.fieldHeight = height;
+        this.y = this.randomSpawnY();
+        this.spawnX = this.x;
+        this.spawnY = this.y;
         this.baseMoveSpeed = 1.4;
         this.moveSpeed = this.baseMoveSpeed;
         this.range = 95;
@@ -208,6 +208,8 @@ class Enemy {
             this.stateMachine.update();
         }
 
+        this.clampToBattlefield();
+
         if (this.x < -this.radius) {
             this.reachedBase = true;
             this.markedForDeletion = true;
@@ -231,19 +233,21 @@ class Enemy {
     }
 
     createWalkTarget() {
+        const bounds = this.getBattleBounds();
         return {
             x: this.x - (80 + Math.random() * 120),
-            y: this.spawnY + (Math.random() * 120 - 60)
+            y: this.clampY(this.spawnY + (Math.random() * 120 - 60), bounds)
         };
     }
 
     advance(fieldWidth, fieldHeight) {
         this.moveToward(this.walkTarget.x, this.walkTarget.y, 2);
 
-        const offVerticalBounds = this.walkTarget.y < 60 || this.walkTarget.y > fieldHeight - 60;
+        const bounds = this.getBattleBounds(fieldWidth, fieldHeight);
+        const offVerticalBounds = this.walkTarget.y < bounds.top || this.walkTarget.y > bounds.bottom;
         if (Math.hypot(this.walkTarget.x - this.x, this.walkTarget.y - this.y) < 8 || offVerticalBounds) {
             this.walkTarget = this.createWalkTarget();
-            this.walkTarget.y = Math.max(60, Math.min(fieldHeight - 60, this.walkTarget.y));
+            this.walkTarget.y = this.clampY(this.walkTarget.y, bounds);
         }
     }
 
@@ -257,6 +261,54 @@ class Enemy {
         const travel = Math.min(this.moveSpeed, dist - stopDistance);
         this.x += (dx / dist) * travel;
         this.y += (dy / dist) * travel;
+        this.clampToBattlefield();
+    }
+
+    isMobileBattlefield(width = this.fieldWidth) {
+        return width <= 900;
+    }
+
+    getBattleBounds(width = this.fieldWidth, height = this.fieldHeight) {
+        const fallbackTop = this.isMobileBattlefield(width) ? 48 : 60;
+        const fallbackBottom = this.isMobileBattlefield(width) ? height - 132 : height - 60;
+        let top = fallbackTop;
+        let bottom = fallbackBottom;
+
+        if (typeof document !== 'undefined') {
+            const hud = document.getElementById('hud');
+            const controls = document.getElementById('controls');
+            const toggle = document.getElementById('mobile-controls-toggle');
+
+            if (hud && !hud.classList.contains('hidden')) {
+                const hudRect = hud.getBoundingClientRect();
+                top = Math.max(top, hudRect.bottom + this.radius);
+            }
+
+            if (controls && !controls.classList.contains('hidden') && !controls.classList.contains('mobile-collapsed')) {
+                const controlsRect = controls.getBoundingClientRect();
+                bottom = Math.min(bottom, controlsRect.top - this.radius - 6);
+            } else if (toggle && !toggle.classList.contains('hidden')) {
+                const toggleRect = toggle.getBoundingClientRect();
+                bottom = Math.min(bottom, toggleRect.top - this.radius - 6);
+            }
+        }
+
+        bottom = Math.max(top + 40, bottom);
+        return { top, bottom };
+    }
+
+    clampY(y, bounds = this.getBattleBounds()) {
+        return Math.max(bounds.top, Math.min(bounds.bottom, y));
+    }
+
+    randomSpawnY() {
+        const bounds = this.getBattleBounds();
+        return bounds.top + Math.random() * Math.max(10, bounds.bottom - bounds.top);
+    }
+
+    clampToBattlefield() {
+        const bounds = this.getBattleBounds();
+        this.y = this.clampY(this.y, bounds);
     }
 
     distanceTo(target) {
@@ -302,4 +354,3 @@ class Enemy {
         }
     }
 }
-

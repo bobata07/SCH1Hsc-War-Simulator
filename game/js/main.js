@@ -1493,6 +1493,7 @@ class Game {
 window.addEventListener('load', () => {
     const game = new Game();
 
+    const orientationScreen = document.getElementById('orientation-screen');
     const startScreen = document.getElementById('start-screen');
     const deckLobbyScreen = document.getElementById('deck-lobby-screen');
     const customMapScreen = document.getElementById('custom-map-screen');
@@ -1529,9 +1530,43 @@ window.addEventListener('load', () => {
     const editorPlayBtn = document.getElementById('editor-play-btn');
     const editorBackBtn = document.getElementById('editor-back-btn');
     let lobbyReturnScreen = 'start';
+    let pausedForPortraitMode = false;
 
     Artillery.setFireSound(artillerySoundSelect.value);
     EnemyArtillery.setFireSound(artillerySoundSelect.value);
+
+    const isPortraitMobile = () => window.innerWidth <= 900 && window.innerHeight > window.innerWidth;
+
+    const tryLockLandscape = async () => {
+        if (!window.screen?.orientation?.lock || !isPortraitMobile() && window.innerWidth > 900) {
+            return;
+        }
+
+        try {
+            await window.screen.orientation.lock('landscape');
+        } catch {
+            // Some browsers only allow this in fullscreen/PWA contexts.
+        }
+    };
+
+    const updateOrientationGate = () => {
+        const showOrientationPrompt = isPortraitMobile();
+        orientationScreen.classList.toggle('hidden', !showOrientationPrompt);
+
+        if (showOrientationPrompt) {
+            if (game.isPlaying && !game.isPaused) {
+                game.isPaused = true;
+                pausedForPortraitMode = true;
+                document.getElementById('pause-screen').classList.add('hidden');
+            }
+            return;
+        }
+
+        if (pausedForPortraitMode && game.isPlaying) {
+            game.isPaused = false;
+            pausedForPortraitMode = false;
+        }
+    };
 
     const hideFrontScreens = () => {
         startScreen.classList.add('hidden');
@@ -1576,11 +1611,13 @@ window.addEventListener('load', () => {
         game.start();
     };
 
-    startBtn.addEventListener('click', () => {
+    startBtn.addEventListener('click', async () => {
+        await tryLockLandscape();
         openDeckLobby('start');
     });
 
-    customMapBtn.addEventListener('click', () => {
+    customMapBtn.addEventListener('click', async () => {
+        await tryLockLandscape();
         hideFrontScreens();
         customMapScreen.classList.remove('hidden');
         game.openCustomMapEditor();
@@ -1646,7 +1683,8 @@ window.addEventListener('load', () => {
         game.drawEditor();
     });
 
-    editorPlayBtn.addEventListener('click', () => {
+    editorPlayBtn.addEventListener('click', async () => {
+        await tryLockLandscape();
         game.saveCustomMap();
         openDeckLobby('custom-map');
     });
@@ -1658,7 +1696,8 @@ window.addEventListener('load', () => {
         startScreen.classList.remove('hidden');
     });
 
-    lobbyStartBtn.addEventListener('click', () => {
+    lobbyStartBtn.addEventListener('click', async () => {
+        await tryLockLandscape();
         beginBattle();
     });
 
@@ -1716,6 +1755,7 @@ window.addEventListener('load', () => {
     document.getElementById('btn-launch-nuke').addEventListener('click', () => game.armNukeLaunch());
 
     window.addEventListener('resize', () => {
+        updateOrientationGate();
         if (!game.isPlaying) return;
 
         if (!game.isMobileLayout()) {
@@ -1727,4 +1767,5 @@ window.addEventListener('load', () => {
 
     game.renderDeckLobby();
     game.updateAvailableUnitsUI();
+    updateOrientationGate();
 });
