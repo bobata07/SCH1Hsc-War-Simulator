@@ -274,7 +274,7 @@ class Enemy {
         let top = fallbackTop;
         let bottom = fallbackBottom;
 
-        if (typeof document !== 'undefined') {
+        if (typeof document !== 'undefined' && this.isMobileBattlefield(width)) {
             const hud = document.getElementById('hud');
             const controls = document.getElementById('controls');
             const toggle = document.getElementById('mobile-controls-toggle');
@@ -325,15 +325,42 @@ class Enemy {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y + 14, this.radius + 2, 6, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = 'black';
-        ctx.fillRect(this.x - 15, this.y - 20, 30, 4);
-        ctx.fillStyle = 'green';
-        ctx.fillRect(this.x - 15, this.y - 20, 30 * (this.health / this.maxHealth), 4);
+        ctx.fillStyle = '#5d362f';
+        ctx.fillRect(this.x - 7, this.y + 1, 5, 13);
+        ctx.fillRect(this.x + 2, this.y + 1, 5, 13);
+
+        ctx.fillStyle = this.stateMachine.currentState === Enemy.states.ATTACK ? '#ffd166' : '#b45345';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 5, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#7b2e27';
+        ctx.beginPath();
+        ctx.roundRect(this.x - 10, this.y - 4, 20, 14, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#29211f';
+        ctx.fillRect(this.x + 4, this.y - 1, 14, 3);
+
+        ctx.fillStyle = '#d7c3b5';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 18, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#7c2f2a';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 20, 8, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+        ctx.fillRect(this.x - 15, this.y - 30, 30, 4);
+        ctx.fillStyle = '#7ef17e';
+        ctx.fillRect(this.x - 15, this.y - 30, 30 * (this.health / this.maxHealth), 4);
 
         if (this.stateMachine.currentState) {
             ctx.fillStyle = '#f3f5f7';

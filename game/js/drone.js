@@ -94,20 +94,39 @@ class Drone {
     draw(ctx) {
         const bob = Math.sin(this.wingPhase) * 3;
 
-        ctx.strokeStyle = '#8ea8b8';
-        ctx.lineWidth = 4;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 12, 16, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#9ab7c7';
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(this.x - 18, this.y + bob);
         ctx.lineTo(this.x + 18, this.y - bob);
         ctx.stroke();
 
-        ctx.fillStyle = '#64717c';
+        ctx.strokeStyle = '#51616b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - 12);
+        ctx.lineTo(this.x, this.y + 12);
+        ctx.stroke();
+
+        ctx.fillStyle = '#6f7e89';
         ctx.beginPath();
         ctx.ellipse(this.x, this.y, 12, 8, 0, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#1c1f23';
-        ctx.fillRect(this.x - 3, this.y + 6, 6, 10);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 4, this.y + 5, 8, 10, 3);
+        ctx.fill();
+
+        ctx.fillStyle = '#d5edf6';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 1, 2, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 18, 36, 4);
@@ -117,4 +136,3 @@ class Drone {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

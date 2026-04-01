@@ -60,10 +60,27 @@ class RocketStation {
     }
 
     draw(ctx) {
-        ctx.fillStyle = '#5b677d';
-        ctx.fillRect(this.x - 18, this.y - 18, 36, 36);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 19, 24, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const base = ctx.createLinearGradient(this.x, this.y - 18, this.x, this.y + 18);
+        base.addColorStop(0, '#79849a');
+        base.addColorStop(1, '#465066');
+        ctx.fillStyle = base;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 18, this.y - 18, 36, 36, 7);
+        ctx.fill();
+
         ctx.fillStyle = '#d7dde8';
-        ctx.fillRect(this.x - 6, this.y - 24, 12, 12);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 6, this.y - 25, 12, 13, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#2d3546';
+        ctx.fillRect(this.x - 12, this.y - 6, 24, 8);
+        ctx.fillRect(this.x + 3, this.y - 13, 14, 4);
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 26, 36, 4);
@@ -73,4 +90,3 @@ class RocketStation {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

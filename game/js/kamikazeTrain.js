@@ -138,17 +138,28 @@ class KamikazeTrain {
 
         const smokeOffset = Math.sin(this.smokePhase) * 2;
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillRect(this.x - this.width / 2 + 4, this.y + 16, this.width - 8, 8);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 16, this.width * 0.46, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-        ctx.fillStyle = '#5d1616';
-        ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+        const body = ctx.createLinearGradient(this.x, this.y - this.height / 2, this.x, this.y + this.height / 2);
+        body.addColorStop(0, '#7f2525');
+        body.addColorStop(1, '#4a1010');
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.roundRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height, 6);
+        ctx.fill();
 
         ctx.fillStyle = '#8f2929';
-        ctx.fillRect(this.x - this.width / 2 + 8, this.y - this.height / 2 - 12, 22, 12);
+        ctx.beginPath();
+        ctx.roundRect(this.x - this.width / 2 + 8, this.y - this.height / 2 - 12, 22, 12, 4);
+        ctx.fill();
 
         ctx.fillStyle = '#d2b66d';
         ctx.fillRect(this.x - this.width / 2 - 6, this.y + this.height / 2 - 4, this.width + 12, 5);
+        ctx.fillRect(this.x - this.width / 2 + 6, this.y + this.height / 2 - 9, 8, 5);
+        ctx.fillRect(this.x + this.width / 2 - 14, this.y + this.height / 2 - 9, 8, 5);
 
         ctx.strokeStyle = '#35210d';
         ctx.lineWidth = 3;

@@ -176,29 +176,47 @@ class AircraftCarrier {
         ctx.fill();
 
         ctx.strokeStyle = this.planeColor;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(plane.x - 11, drawY);
         ctx.lineTo(plane.x + 11, drawY);
+        ctx.moveTo(plane.x - 4, drawY - 5);
+        ctx.lineTo(plane.x + 5, drawY + 5);
         ctx.stroke();
 
         ctx.fillStyle = this.planeColor;
         ctx.beginPath();
         ctx.ellipse(plane.x, drawY, 8, 4, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillRect(plane.x - 2, drawY - 7, 4, 14);
+        ctx.beginPath();
+        ctx.roundRect(plane.x - 2, drawY - 7, 4, 14, 2);
+        ctx.fill();
     }
 
     draw(ctx) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + this.height * 0.75, this.width * 0.52, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = this.hullColor;
-        ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+        ctx.beginPath();
+        ctx.roundRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height, 10);
+        ctx.fill();
         ctx.fillStyle = this.towerColor;
-        ctx.fillRect(this.x - 8, this.y - this.height / 2 - 12, 16, 18);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 10, this.y - this.height / 2 - 12, 20, 18, 5);
+        ctx.fill();
         ctx.strokeStyle = this.deckColor;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(this.x - this.width / 2 + 12, this.y + 2);
         ctx.lineTo(this.x + this.width / 2 - 12, this.y + 2);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.moveTo(this.x - this.width / 2 + 20, this.y - 6);
+        ctx.lineTo(this.x + this.width / 2 - 20, this.y - 6);
         ctx.stroke();
 
         ctx.fillStyle = 'black';
@@ -219,4 +237,3 @@ class AircraftCarrier {
         ctx.fillText(`${readyCount}/3`, this.x, this.y + 24);
     }
 }
-

@@ -126,10 +126,27 @@ class Tank {
     }
 
     draw(ctx) {
-        ctx.fillStyle = '#556b2f';
-        ctx.fillRect(this.x - 20, this.y - 12, 40, 24);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 14, 24, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#475c28';
+        ctx.beginPath();
+        ctx.roundRect(this.x - 20, this.y - 12, 40, 24, 6);
+        ctx.fill();
+
+        ctx.fillStyle = '#2c361b';
+        ctx.fillRect(this.x - 14, this.y + 10, 10, 4);
+        ctx.fillRect(this.x + 4, this.y + 10, 10, 4);
+
         ctx.fillStyle = '#c1b15c';
-        ctx.fillRect(this.x - 5, this.y - 22, 10, 18);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 7, this.y - 22, 14, 18, 5);
+        ctx.fill();
+
+        ctx.fillStyle = '#302716';
+        ctx.fillRect(this.x + 5, this.y - 15, 18, 4);
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 24, 36, 4);
@@ -139,4 +156,3 @@ class Tank {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

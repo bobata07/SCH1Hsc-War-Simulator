@@ -57,10 +57,27 @@ class NuclearLauncher {
     }
 
     draw(ctx) {
-        ctx.fillStyle = '#3f4b2e';
-        ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 20, 26, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const silo = ctx.createLinearGradient(this.x, this.y - 20, this.x, this.y + 20);
+        silo.addColorStop(0, '#56663a');
+        silo.addColorStop(1, '#313d23');
+        ctx.fillStyle = silo;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 20, this.y - 20, 40, 40, 8);
+        ctx.fill();
+
         ctx.fillStyle = '#d6e274';
-        ctx.fillRect(this.x - 7, this.y - 28, 14, 14);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 7, this.y - 29, 14, 15, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#222b17';
+        ctx.fillRect(this.x - 14, this.y - 6, 28, 10);
+        ctx.fillRect(this.x + 3, this.y - 14, 13, 5);
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 30, 36, 4);
@@ -81,4 +98,3 @@ class NuclearLauncher {
         });
     }
 }
-

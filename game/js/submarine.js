@@ -76,12 +76,24 @@ class Submarine {
     }
 
     draw(ctx) {
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 16, 24, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = this.hullColor;
         ctx.beginPath();
         ctx.ellipse(this.x, this.y, 24, 10, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = this.towerColor;
-        ctx.fillRect(this.x - 5, this.y - 16, 10, 10);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 6, this.y - 16, 12, 10, 4);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.beginPath();
+        ctx.moveTo(this.x - 18, this.y + 3);
+        ctx.lineTo(this.x + 18, this.y + 3);
+        ctx.stroke();
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 22, 36, 4);
         ctx.fillStyle = '#7ad36b';
@@ -89,4 +101,3 @@ class Submarine {
         this.projectiles.forEach(p => p.draw(ctx));
     }
 }
-

@@ -83,10 +83,26 @@ class Artillery {
         ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - 16, this.y - 12, 32, 24);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 16, 22, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const chassis = ctx.createLinearGradient(this.x, this.y - 12, this.x, this.y + 12);
+        chassis.addColorStop(0, '#9f927f');
+        chassis.addColorStop(1, '#5f5548');
+        ctx.fillStyle = chassis;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 16, this.y - 12, 32, 24, 6);
+        ctx.fill();
+
         ctx.fillStyle = '#4a4339';
-        ctx.fillRect(this.x - 5, this.y - 22, 10, 16);
+        ctx.fillRect(this.x - 14, this.y + 8, 10, 4);
+        ctx.fillRect(this.x + 4, this.y + 8, 10, 4);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 6, this.y - 23, 12, 17, 4);
+        ctx.fill();
+        ctx.fillRect(this.x + 4, this.y - 18, 22, 4);
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 24, 36, 4);
@@ -102,4 +118,3 @@ Artillery.currentSoundPath = 'assets/sounds/artillery sounds/cannon-sound-effect
 Artillery.setFireSound = function (soundPath) {
     Artillery.currentSoundPath = soundPath;
 };
-

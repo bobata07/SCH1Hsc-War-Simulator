@@ -1,4 +1,45 @@
 class Soldier {
+    static isMobileBattlefield(fieldWidth) {
+        return fieldWidth <= 900;
+    }
+
+    static getBattleBounds(fieldWidth, fieldHeight, radius = 10) {
+        const fallbackTop = Soldier.isMobileBattlefield(fieldWidth) ? 48 : radius;
+        const fallbackBottom = Soldier.isMobileBattlefield(fieldWidth) ? fieldHeight - 132 : fieldHeight - radius;
+        let top = fallbackTop;
+        let bottom = fallbackBottom;
+
+        if (typeof document !== 'undefined' && Soldier.isMobileBattlefield(fieldWidth)) {
+            const hud = document.getElementById('hud');
+            const controls = document.getElementById('controls');
+            const toggle = document.getElementById('mobile-controls-toggle');
+
+            if (hud && !hud.classList.contains('hidden')) {
+                const hudRect = hud.getBoundingClientRect();
+                top = Math.max(top, hudRect.bottom + radius);
+            }
+
+            if (controls && !controls.classList.contains('hidden') && !controls.classList.contains('mobile-collapsed')) {
+                const controlsRect = controls.getBoundingClientRect();
+                bottom = Math.min(bottom, controlsRect.top - radius - 6);
+            } else if (toggle && !toggle.classList.contains('hidden')) {
+                const toggleRect = toggle.getBoundingClientRect();
+                bottom = Math.min(bottom, toggleRect.top - radius - 6);
+            }
+        }
+
+        bottom = Math.max(top + radius * 2, bottom);
+        return { top, bottom };
+    }
+
+    static clampPoint(x, y, fieldWidth, fieldHeight, radius = 10) {
+        const bounds = Soldier.getBattleBounds(fieldWidth, fieldHeight, radius);
+        return {
+            x: Math.max(radius, Math.min(fieldWidth - radius, x)),
+            y: Math.max(bounds.top, Math.min(bounds.bottom, y))
+        };
+    }
+
     constructor(x, y) {
         this.x = x;
         this.y = y;
@@ -145,36 +186,11 @@ class Soldier {
     }
 
     isMobileBattlefield(fieldWidth) {
-        return fieldWidth <= 900;
+        return Soldier.isMobileBattlefield(fieldWidth);
     }
 
     getBattleBounds(fieldWidth, fieldHeight) {
-        const fallbackTop = this.isMobileBattlefield(fieldWidth) ? 48 : this.radius;
-        const fallbackBottom = this.isMobileBattlefield(fieldWidth) ? fieldHeight - 132 : fieldHeight - this.radius;
-        let top = fallbackTop;
-        let bottom = fallbackBottom;
-
-        if (typeof document !== 'undefined') {
-            const hud = document.getElementById('hud');
-            const controls = document.getElementById('controls');
-            const toggle = document.getElementById('mobile-controls-toggle');
-
-            if (hud && !hud.classList.contains('hidden')) {
-                const hudRect = hud.getBoundingClientRect();
-                top = Math.max(top, hudRect.bottom + this.radius);
-            }
-
-            if (controls && !controls.classList.contains('hidden') && !controls.classList.contains('mobile-collapsed')) {
-                const controlsRect = controls.getBoundingClientRect();
-                bottom = Math.min(bottom, controlsRect.top - this.radius - 6);
-            } else if (toggle && !toggle.classList.contains('hidden')) {
-                const toggleRect = toggle.getBoundingClientRect();
-                bottom = Math.min(bottom, toggleRect.top - this.radius - 6);
-            }
-        }
-
-        bottom = Math.max(top + this.radius * 2, bottom);
-        return { top, bottom };
+        return Soldier.getBattleBounds(fieldWidth, fieldHeight, this.radius);
     }
 
     clampY(y, bounds) {
@@ -196,15 +212,37 @@ class Soldier {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y + 12, this.radius + 1, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = 'black';
-        ctx.fillRect(this.x - 15, this.y - 20, 30, 4);
-        ctx.fillStyle = 'green';
-        ctx.fillRect(this.x - 15, this.y - 20, 30 * (this.health / this.maxHealth), 4);
+        ctx.fillStyle = '#435430';
+        ctx.fillRect(this.x - 6, this.y + 1, 4, 12);
+        ctx.fillRect(this.x + 2, this.y + 1, 4, 12);
+
+        ctx.fillStyle = '#4f6f3f';
+        ctx.beginPath();
+        ctx.roundRect(this.x - 9, this.y - 4, 18, 14, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#2e3e28';
+        ctx.fillRect(this.x + 3, this.y - 1, 12, 3);
+
+        ctx.fillStyle = '#d9c5ae';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 16, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#5b7042';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 18, 7, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+        ctx.fillRect(this.x - 15, this.y - 28, 30, 4);
+        ctx.fillStyle = '#7ef17e';
+        ctx.fillRect(this.x - 15, this.y - 28, 30 * (this.health / this.maxHealth), 4);
 
         this.projectiles.forEach(p => p.draw(ctx));
     }

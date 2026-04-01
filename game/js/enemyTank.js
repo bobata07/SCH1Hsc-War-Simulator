@@ -89,10 +89,24 @@ class EnemyTank {
     }
 
     draw(ctx) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 14, 24, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = '#7b4a32';
-        ctx.fillRect(this.x - 20, this.y - 12, 40, 24);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 20, this.y - 12, 40, 24, 6);
+        ctx.fill();
+        ctx.fillStyle = '#4b2c1f';
+        ctx.fillRect(this.x - 14, this.y + 10, 10, 4);
+        ctx.fillRect(this.x + 4, this.y + 10, 10, 4);
         ctx.fillStyle = '#d18b62';
-        ctx.fillRect(this.x - 5, this.y - 22, 10, 18);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 7, this.y - 22, 14, 18, 5);
+        ctx.fill();
+        ctx.fillStyle = '#7f4f38';
+        ctx.fillRect(this.x - 23, this.y - 15, 18, 4);
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, this.y - 24, 36, 4);
         ctx.fillStyle = '#7ad36b';
@@ -100,4 +114,3 @@ class EnemyTank {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

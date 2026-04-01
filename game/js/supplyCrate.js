@@ -27,8 +27,19 @@ class SupplyCrate {
         ctx.arc(this.x, this.y, this.radius * 1.8 * pulse, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#8a5a2b';
-        ctx.fillRect(this.x - 16, this.y - 12, 32, 24);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 14, 20, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const crate = ctx.createLinearGradient(this.x, this.y - 12, this.x, this.y + 12);
+        crate.addColorStop(0, '#a36c35');
+        crate.addColorStop(1, '#6e451f');
+        ctx.fillStyle = crate;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 16, this.y - 12, 32, 24, 4);
+        ctx.fill();
+
         ctx.strokeStyle = '#f6d04d';
         ctx.lineWidth = 2;
         ctx.strokeRect(this.x - 16, this.y - 12, 32, 24);
@@ -43,4 +54,3 @@ class SupplyCrate {
         ctx.fillText('+120', this.x, this.y - 22);
     }
 }
-

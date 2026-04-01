@@ -96,9 +96,18 @@ class EnemySniper {
         ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
         ctx.stroke();
 
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 12, 13, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#713e32';
+        ctx.fillRect(this.x - 5, this.y + 2, 4, 12);
+        ctx.fillRect(this.x + 1, this.y + 2, 4, 12);
+
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y - 2, 12, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = 'black';
@@ -107,9 +116,15 @@ class EnemySniper {
         ctx.fillRect(this.x - 15, this.y - 24, 30 * (this.health / this.maxHealth), 4);
 
         ctx.fillStyle = '#4b2418';
-        ctx.fillRect(this.x - 4, this.y - 18, 8, 14);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 5, this.y - 16, 10, 14, 4);
+        ctx.fill();
+        ctx.fillRect(this.x - 19, this.y - 10, 16, 3);
+        ctx.fillStyle = '#f1d0bb';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y - 18, 6, 0, Math.PI * 2);
+        ctx.fill();
 
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

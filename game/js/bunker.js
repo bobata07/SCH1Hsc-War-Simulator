@@ -70,12 +70,31 @@ class Bunker {
         ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.fillStyle = '#4f5940';
-        ctx.fillRect(this.x - 24, this.y - 18, 48, 36);
-        ctx.fillStyle = '#2d3325';
-        ctx.fillRect(this.x - 12, this.y - 8, 24, 12);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 20, 30, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const shell = ctx.createLinearGradient(this.x, this.y - 18, this.x, this.y + 18);
+        shell.addColorStop(0, '#69765a');
+        shell.addColorStop(1, '#3c4633');
+        ctx.fillStyle = shell;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 24, this.y - 18, 48, 36, 10);
+        ctx.fill();
+
+        ctx.fillStyle = '#252d22';
+        ctx.beginPath();
+        ctx.roundRect(this.x - 14, this.y - 7, 28, 13, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#7f8a6d';
+        ctx.fillRect(this.x - 26, this.y - 3, 52, 6);
+
         ctx.fillStyle = '#d6e4aa';
-        ctx.fillRect(this.x - 5, this.y - 26, 10, 16);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 6, this.y - 28, 12, 16, 4);
+        ctx.fill();
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 22, this.y - 28, 44, 4);
@@ -85,4 +104,3 @@ class Bunker {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

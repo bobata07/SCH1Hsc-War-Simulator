@@ -1,0 +1,9 @@
+{
+  "name": "war-simulator",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local launcher for the War Simulator browser game",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

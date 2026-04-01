@@ -54,18 +54,44 @@ class Tower {
     }
 
     draw(ctx) {
-        // Range indicator (debug/hover)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.strokeStyle = 'rgba(205, 224, 235, 0.08)';
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Tower body
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - 15, this.y - 15, 30, 30);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 18, 22, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Draw projectiles
+        const baseGradient = ctx.createLinearGradient(this.x, this.y - 16, this.x, this.y + 18);
+        baseGradient.addColorStop(0, '#93a4ae');
+        baseGradient.addColorStop(1, '#48555d');
+        ctx.fillStyle = baseGradient;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 16, this.y - 14, 32, 28, 6);
+        ctx.fill();
+
+        ctx.fillStyle = '#30414b';
+        ctx.beginPath();
+        ctx.roundRect(this.x - 11, this.y - 9, 22, 18, 5);
+        ctx.fill();
+
+        ctx.fillStyle = '#1d272d';
+        ctx.fillRect(this.x + 4, this.y - 4, 18, 6);
+
+        ctx.fillStyle = '#c6d6de';
+        ctx.beginPath();
+        ctx.arc(this.x - 4, this.y - 3, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.x - 12, this.y + 2);
+        ctx.lineTo(this.x + 12, this.y + 2);
+        ctx.stroke();
+
         this.projectiles.forEach(p => p.draw(ctx));
     }
 }
-

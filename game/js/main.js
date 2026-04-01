@@ -156,135 +156,142 @@ class Game {
                 return;
             }
 
+            if (!this.isPlacementAllowedAt(x, y, this.selectedUnitType)) {
+                return;
+            }
+
+            const placeX = x;
+            const placeY = y;
+
             if (this.selectedUnitType === 'tower') {
                 if (this.gold >= 50) {
-                    this.towers.push(new Tower(x, y));
+                    this.towers.push(new Tower(placeX, placeY));
                     this.gold -= 50;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'spawn-tower') {
                 if (this.gold >= 90) {
-                    this.spawnTowers.push(new SpawnTower(x, y));
+                    this.spawnTowers.push(new SpawnTower(placeX, placeY));
                     this.gold -= 90;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'tank-spawn-tower') {
                 if (this.gold >= 220) {
-                    this.tankSpawnTowers.push(new TankSpawnTower(x, y));
+                    this.tankSpawnTowers.push(new TankSpawnTower(placeX, placeY));
                     this.gold -= 220;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'barbed-wire') {
                 if (this.gold >= 40) {
-                    this.barbedWires.push(new BarbedWire(x, y));
+                    this.barbedWires.push(new BarbedWire(placeX, placeY));
                     this.gold -= 40;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'trench') {
                 if (this.gold >= 60) {
-                    this.trenches.push(new Trench(x, y));
+                    this.trenches.push(new Trench(placeX, placeY));
                     this.gold -= 60;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'repair-base') {
                 if (this.gold >= 130) {
-                    this.repairBases.push(new RepairBase(x, y));
+                    this.repairBases.push(new RepairBase(placeX, placeY));
                     this.gold -= 130;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'airport') {
                 if (this.gold >= 180) {
-                    this.airports.push(new Airport(x, y));
+                    this.airports.push(new Airport(placeX, placeY));
                     this.gold -= 180;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'bunker') {
                 if (this.gold >= 170) {
-                    this.bunkers.push(new Bunker(x, y));
+                    this.bunkers.push(new Bunker(placeX, placeY));
                     this.gold -= 170;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'soldier') {
                 if (this.gold >= 30 && this.soldiers.length < this.maxFriendlySoldiers) {
-                    this.soldiers.push(new Soldier(x, y));
+                    this.soldiers.push(new Soldier(placeX, placeY));
                     this.gold -= 30;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'tank') {
                 if (this.gold >= 150) {
-                    this.tanks.push(new Tank(x, y));
+                    this.tanks.push(new Tank(placeX, placeY));
                     this.gold -= 150;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'submarine') {
                 if (this.gold >= 140) {
-                    this.submarines.push(new Submarine(x, y));
+                    this.submarines.push(new Submarine(placeX, placeY));
                     this.gold -= 140;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'aircraft-carrier') {
                 if (this.gold >= 260) {
-                    this.aircraftCarriers.push(new AircraftCarrier(x, y));
+                    this.aircraftCarriers.push(new AircraftCarrier(placeX, placeY));
                     this.gold -= 260;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'bulldozer') {
                 if (this.gold >= 95) {
-                    this.bulldozers.push(new Bulldozer(x, y));
+                    this.bulldozers.push(new Bulldozer(placeX, placeY));
                     this.gold -= 95;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'sniper') {
                 if (this.gold >= 80) {
-                    this.snipers.push(new Sniper(x, y));
+                    this.snipers.push(new Sniper(placeX, placeY));
                     this.gold -= 80;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'artillery') {
                 if (this.gold >= 120) {
-                    this.artilleryUnits.push(new Artillery(x, y));
+                    this.artilleryUnits.push(new Artillery(placeX, placeY));
                     this.gold -= 120;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'drone') {
                 if (this.gold >= 110) {
-                    this.drones.push(new Drone(x, y));
+                    this.drones.push(new Drone(placeX, placeY));
                     this.gold -= 110;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'kamikaze-train') {
                 if (this.gold >= 210) {
-                    this.kamikazeTrains.push(new KamikazeTrain(x, y));
+                    this.kamikazeTrains.push(new KamikazeTrain(placeX, placeY));
                     this.gold -= 210;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'rocket-station') {
                 if (this.gold >= 140) {
-                    this.rocketStations.push(new RocketStation(x, y));
+                    this.rocketStations.push(new RocketStation(placeX, placeY));
                     this.gold -= 140;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'nuclear-launcher') {
                 if (this.gold >= 400) {
-                    this.nuclearLaunchers.push(new NuclearLauncher(x, y));
+                    this.nuclearLaunchers.push(new NuclearLauncher(placeX, placeY));
                     this.gold -= 400;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
@@ -615,8 +622,8 @@ class Game {
 
         // Update Towers
         this.towers.forEach(t => t.update(hostileUnits));
-        this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers));
-        this.tankSpawnTowers.forEach(t => t.update(deltaTime, this.tanks));
+        this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers, this.canvas.width, this.canvas.height));
+        this.tankSpawnTowers.forEach(t => t.update(deltaTime, this.tanks, this.canvas.width, this.canvas.height));
 
         // Update Soldiers
         const friendlyMovers = [...this.soldiers, ...this.tanks];
@@ -752,7 +759,6 @@ class Game {
 
     draw() {
         this.drawBattlefieldBackground();
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawCustomMapObjects(this.ctx);
 
         this.enemies.forEach(e => e.draw(this.ctx));
@@ -1092,7 +1098,6 @@ class Game {
 
     drawEditor() {
         this.drawBattlefieldBackground(true);
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         this.ctx.lineWidth = 1;
@@ -1154,15 +1159,78 @@ class Game {
     }
 
     drawBattlefieldBackground(editorView = false) {
+        const { ctx } = this;
+        const { width, height } = this.canvas;
+
         if (this.customMapMode === 'ocean') {
-            const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-            gradient.addColorStop(0, '#1e5673');
-            gradient.addColorStop(1, '#0b2333');
-            this.ctx.fillStyle = gradient;
+            const water = ctx.createLinearGradient(0, 0, 0, height);
+            water.addColorStop(0, editorView ? '#2f6178' : '#3e89a8');
+            water.addColorStop(0.45, editorView ? '#1d4860' : '#205d7a');
+            water.addColorStop(1, '#0b2231');
+            ctx.fillStyle = water;
+            ctx.fillRect(0, 0, width, height);
+
+            const glow = ctx.createRadialGradient(width * 0.7, height * 0.18, 20, width * 0.7, height * 0.18, width * 0.45);
+            glow.addColorStop(0, 'rgba(201, 240, 255, 0.24)');
+            glow.addColorStop(1, 'rgba(201, 240, 255, 0)');
+            ctx.fillStyle = glow;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = 'rgba(210, 244, 255, 0.12)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 7; i++) {
+                const waveY = height * (0.18 + i * 0.12);
+                ctx.beginPath();
+                for (let x = 0; x <= width + 40; x += 40) {
+                    const y = waveY + Math.sin((x / 55) + (performance.now() / 700) + i) * 5;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
             return;
         }
 
-        this.ctx.fillStyle = editorView ? '#24303a' : '#222';
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, editorView ? '#31414a' : '#60717c');
+        sky.addColorStop(0.35, editorView ? '#4c565d' : '#9a916f');
+        sky.addColorStop(1, editorView ? '#1b2227' : '#38382f');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        const haze = ctx.createLinearGradient(0, height * 0.22, 0, height * 0.52);
+        haze.addColorStop(0, 'rgba(255, 214, 170, 0)');
+        haze.addColorStop(1, editorView ? 'rgba(255,255,255,0.04)' : 'rgba(255, 214, 170, 0.16)');
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, height * 0.18, width, height * 0.34);
+
+        const ground = ctx.createLinearGradient(0, height * 0.3, 0, height);
+        ground.addColorStop(0, editorView ? '#54625e' : '#7a7456');
+        ground.addColorStop(0.45, editorView ? '#44514d' : '#535740');
+        ground.addColorStop(1, editorView ? '#20292d' : '#25261f');
+        ctx.fillStyle = ground;
+        ctx.fillRect(0, height * 0.32, width, height * 0.68);
+
+        ctx.fillStyle = editorView ? 'rgba(255,255,255,0.04)' : 'rgba(49, 40, 22, 0.28)';
+        ctx.fillRect(0, height * 0.47, width, height * 0.09);
+
+        ctx.strokeStyle = editorView ? 'rgba(255,255,255,0.06)' : 'rgba(255, 237, 202, 0.08)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+            const y = height * (0.4 + i * 0.09);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            for (let x = 0; x <= width + 30; x += 30) {
+                ctx.lineTo(x, y + Math.sin((x / 65) + i) * 4);
+            }
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = editorView ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.16)';
+        for (let i = 0; i < 14; i++) {
+            const x = (i / 13) * width;
+            ctx.fillRect(x, height * 0.5 + ((i % 2) * 12), 18, 10);
+        }
     }
 
     drawRadiationZone(zone) {
@@ -1446,6 +1514,53 @@ class Game {
         }
 
         return false;
+    }
+
+    getPlacementRadius(type) {
+        const radii = {
+            tower: 18,
+            'spawn-tower': 20,
+            'tank-spawn-tower': 22,
+            'barbed-wire': 28,
+            trench: 18,
+            'repair-base': 24,
+            airport: 24,
+            bunker: 24,
+            soldier: 10,
+            tank: 16,
+            bulldozer: 16,
+            sniper: 12,
+            artillery: 18,
+            drone: 14,
+            'kamikaze-train': 20,
+            'rocket-station': 20,
+            'nuclear-launcher': 22,
+            submarine: 24,
+            'aircraft-carrier': 30
+        };
+
+        return radii[type] || 16;
+    }
+
+    isPlacementAllowedAt(x, y, type) {
+        const radius = this.getPlacementRadius(type);
+
+        if (type === 'submarine' || type === 'aircraft-carrier') {
+            return (
+                x >= radius &&
+                x <= this.canvas.width - radius &&
+                y >= radius &&
+                y <= this.canvas.height - radius
+            );
+        }
+
+        const bounds = Soldier.getBattleBounds(this.canvas.width, this.canvas.height, radius);
+        return (
+            x >= radius &&
+            x <= this.canvas.width - radius &&
+            y >= bounds.top &&
+            y <= bounds.bottom
+        );
     }
 
     collectSupplyCrateAt(x, y) {

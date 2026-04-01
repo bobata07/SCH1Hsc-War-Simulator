@@ -28,12 +28,31 @@ class RepairBase {
         ctx.arc(this.x, this.y, this.repairRadius, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.fillStyle = '#456a78';
-        ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 21, 24, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const shell = ctx.createLinearGradient(this.x, this.y - 20, this.x, this.y + 20);
+        shell.addColorStop(0, '#5f8ea0');
+        shell.addColorStop(1, '#355362');
+        ctx.fillStyle = shell;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 20, this.y - 20, 40, 40, 8);
+        ctx.fill();
 
         ctx.fillStyle = '#d0f6ff';
-        ctx.fillRect(this.x - 5, this.y - 14, 10, 28);
-        ctx.fillRect(this.x - 14, this.y - 5, 28, 10);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 6, this.y - 15, 12, 30, 4);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(this.x - 15, this.y - 6, 30, 12, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#8ad9ff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.fillStyle = '#e8fbff';
         ctx.font = 'bold 12px Segoe UI';
@@ -41,4 +60,3 @@ class RepairBase {
         ctx.fillText(`${this.assignedTanks.size}/${this.capacity}`, this.x, this.y + 34);
     }
 }
-

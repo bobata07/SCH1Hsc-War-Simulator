@@ -110,10 +110,12 @@ class Plane {
         ctx.fill();
 
         ctx.strokeStyle = '#dbe8f4';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(this.x - 20, drawY);
         ctx.lineTo(this.x + 20, drawY);
+        ctx.moveTo(this.x - 8, drawY - 7);
+        ctx.lineTo(this.x + 6, drawY + 7);
         ctx.stroke();
 
         ctx.fillStyle = '#7d8ea1';
@@ -122,7 +124,15 @@ class Plane {
         ctx.fill();
 
         ctx.fillStyle = '#9fb4c8';
-        ctx.fillRect(this.x - 4, drawY - 10, 8, 20);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 4, drawY - 10, 8, 20, 4);
+        ctx.fill();
+        ctx.fillStyle = '#4e6070';
+        ctx.fillRect(this.x + 8, drawY - 2, 12, 3);
+        ctx.fillStyle = '#eef8ff';
+        ctx.beginPath();
+        ctx.arc(this.x - 2, drawY, 2, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, drawY - 20, 36, 4);
@@ -132,4 +142,3 @@ class Plane {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

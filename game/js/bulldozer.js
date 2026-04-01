@@ -127,19 +127,37 @@ class Bulldozer {
     }
 
     draw(ctx) {
-        ctx.fillStyle = '#b68d3c';
-        ctx.fillRect(this.x - 22, this.y - 14, 44, 28);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y + 17, 26, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const body = ctx.createLinearGradient(this.x, this.y - 14, this.x, this.y + 14);
+        body.addColorStop(0, '#d0a754');
+        body.addColorStop(1, '#89672a');
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.roundRect(this.x - 22, this.y - 14, 44, 28, 6);
+        ctx.fill();
 
         ctx.fillStyle = '#4f5b2a';
-        ctx.fillRect(this.x - 10, this.y - 22, 20, 12);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 10, this.y - 22, 20, 12, 4);
+        ctx.fill();
 
-        ctx.fillStyle = '#5f6770';
+        ctx.fillStyle = '#40464d';
+        ctx.fillRect(this.x - 18, this.y + 10, 12, 4);
+        ctx.fillRect(this.x + 6, this.y + 10, 12, 4);
         ctx.fillRect(this.x + 18, this.y - 12, 14, 24);
 
         ctx.strokeStyle = '#d6bd6b';
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(this.x + 30, this.y - 16);
+        ctx.lineTo(this.x + 30, this.y + 16);
+        ctx.moveTo(this.x + 22, this.y - 10);
+        ctx.lineTo(this.x + 30, this.y - 16);
+        ctx.moveTo(this.x + 22, this.y + 10);
         ctx.lineTo(this.x + 30, this.y + 16);
         ctx.stroke();
 
@@ -149,4 +167,3 @@ class Bulldozer {
         ctx.fillRect(this.x - 20, this.y - 26, 40, 4);
     }
 }
-

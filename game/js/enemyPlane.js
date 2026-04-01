@@ -95,17 +95,27 @@ class EnemyPlane {
         ctx.ellipse(this.x, this.y + 14, 18, 7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#f0c6b1';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(this.x - 20, drawY);
         ctx.lineTo(this.x + 20, drawY);
+        ctx.moveTo(this.x + 8, drawY - 7);
+        ctx.lineTo(this.x - 6, drawY + 7);
         ctx.stroke();
         ctx.fillStyle = '#9c6a58';
         ctx.beginPath();
         ctx.ellipse(this.x, drawY, 14, 7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#d9b29e';
-        ctx.fillRect(this.x - 4, drawY - 10, 8, 20);
+        ctx.beginPath();
+        ctx.roundRect(this.x - 4, drawY - 10, 8, 20, 4);
+        ctx.fill();
+        ctx.fillStyle = '#633e32';
+        ctx.fillRect(this.x - 20, drawY - 2, 12, 3);
+        ctx.fillStyle = '#fff1ea';
+        ctx.beginPath();
+        ctx.arc(this.x + 2, drawY, 2, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = 'black';
         ctx.fillRect(this.x - 18, drawY - 20, 36, 4);
         ctx.fillStyle = '#7ad36b';
@@ -113,4 +123,3 @@ class EnemyPlane {
         this.projectiles.forEach(projectile => projectile.draw(ctx));
     }
 }
-

@@ -53,10 +53,22 @@ class Projectile {
     }
 
     draw(ctx) {
+        const glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 2.1);
+        glow.addColorStop(0, this.color);
+        glow.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * 2.1, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath();
+        ctx.arc(this.x - this.radius * 0.25, this.y - this.radius * 0.25, Math.max(1.5, this.radius * 0.35), 0, Math.PI * 2);
+        ctx.fill();
     }
 }
-
