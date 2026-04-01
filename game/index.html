@@ -19,6 +19,7 @@
 
     <div id="ui-layer">
         <div id="hud" class="hidden">
+            <div class="stat">Level: <span id="level-display">1</span></div>
             <div class="stat">Health: <span id="health-display">100</span></div>
             <div class="stat">Gold: <span id="gold-display">50</span></div>
             <div class="stat">Wave: <span id="wave-display">1</span></div>
@@ -91,8 +92,9 @@
         </div>
 
         <div id="victory-screen" class="screen hidden">
-            <h1>Victory</h1>
-            <p>Score: <span id="victory-score">0</span></p>
+            <h1 id="victory-title">Victory</h1>
+            <p id="victory-score-line">Score: <span id="victory-score">0</span></p>
+            <p id="victory-message">Prepare for the next battle.</p>
             <button id="victory-restart-btn" class="btn">Play Again</button>
             <button id="victory-menu-btn" class="btn" style="margin-top: 10px; background-color: #2196F3;">Main Menu</button>
         </div>

@@ -26,6 +26,10 @@ class Game {
         this.score = 0;
         this.gold = this.baseStartingGold;
         this.lives = this.baseLives;
+        this.campaignLevel = 1;
+        this.maxCampaignLevels = 15;
+        this.pendingLevelAdvance = false;
+        this.levelConfig = this.createLevelConfig(this.campaignLevel);
         this.wave = 1;
         this.gameSpeed = 1;
         this.enemyResources = 1;
@@ -365,6 +369,7 @@ class Game {
     }
 
     start() {
+        this.applyLevelConfig();
         this.resetBattleState();
         this.isPlaying = true;
         this.lastTime = performance.now();
@@ -383,13 +388,12 @@ class Game {
         this.supplyCrateTimer = 0;
         this.updateAvailableUnitsUI();
         this.updateHUD();
-        this.dispatchGameEvent('gameStart', { mapMode: this.customMapMode });
-        this.showEventBanner(`Battle started on ${this.customMapMode} map.`);
+        this.dispatchGameEvent('gameStart', { mapMode: this.customMapMode, level: this.campaignLevel });
+        this.showEventBanner(`Level ${this.campaignLevel}/${this.maxCampaignLevels} started on ${this.customMapMode} map.`);
         requestAnimationFrame(this.loop);
     }
 
     resetBattleState() {
-        this.score = 0;
         this.gold = this.baseStartingGold;
         this.lives = this.baseLives;
         this.wave = 1;
@@ -444,9 +448,9 @@ class Game {
 
     update(deltaTime) {
         this.elapsedTime += deltaTime;
-        this.spawnIntensityLevel = Math.floor(this.elapsedTime / 10000) + 1;
-        this.enemyResources = Math.max(0, 1 - (this.elapsedTime / 120000));
-        this.enemyStrengthMultiplier = Math.max(0.35, this.enemyResources);
+        this.spawnIntensityLevel = Math.floor(this.elapsedTime / 10000) + 1 + this.levelConfig.spawnIntensityBonus;
+        this.enemyResources = Math.max(0, 1 - (this.elapsedTime / this.levelConfig.levelDurationMs));
+        this.enemyStrengthMultiplier = Math.max(this.levelConfig.enemyStrengthFloor, this.enemyResources);
 
         if (this.customMapMode === 'ocean') {
             this.updateOceanBattle(deltaTime);
@@ -455,48 +459,47 @@ class Game {
 
         // Continuous enemy soldier spawning
         this.spawnTimer += deltaTime;
-        if (this.enemyResources > 0 && this.spawnTimer > 1000 && this.enemies.length < this.maxEnemySoldiers) {
+        if (this.enemyResources > 0 && this.spawnTimer > this.levelConfig.landSpawnInterval && this.enemies.length < this.maxEnemySoldiers) {
             const availableSlots = this.maxEnemySoldiers - this.enemies.length;
             const scaledSpawnCount = Math.max(1, Math.ceil(this.spawnIntensityLevel * this.enemyStrengthMultiplier));
             const spawnCount = Math.min(scaledSpawnCount, availableSlots);
 
             for (let i = 0; i < spawnCount; i++) {
-                this.enemies.push(new Enemy(this.canvas.width, this.canvas.height));
+                this.enemies.push(this.configureEnemyUnit(new Enemy(this.canvas.width, this.canvas.height)));
             }
             this.spawnTimer = 0;
         }
 
-        // Enemy artillery now spawns every second
         this.enemyArtilleryTimer += deltaTime;
-        const artilleryInterval = 1000 + ((1 - this.enemyStrengthMultiplier) * 4000);
+        const artilleryInterval = this.levelConfig.artilleryIntervalBase + ((1 - this.enemyStrengthMultiplier) * 1800);
         if (this.enemyResources > 0 && this.enemyArtilleryTimer >= artilleryInterval && this.enemyArtilleryUnits.length < this.maxEnemyArtillery) {
-            this.enemyArtilleryUnits.push(new EnemyArtillery(this.canvas.width, this.canvas.height));
+            this.enemyArtilleryUnits.push(this.configureEnemyUnit(new EnemyArtillery(this.canvas.width, this.canvas.height)));
             this.enemyArtilleryTimer = 0;
         }
 
         this.enemySniperTimer += deltaTime;
-        const sniperInterval = Math.max(9000, (18000 - ((this.spawnIntensityLevel - 1) * 900)) + ((1 - this.enemyStrengthMultiplier) * 6000));
+        const sniperInterval = Math.max(2400, (this.levelConfig.sniperIntervalBase - ((this.spawnIntensityLevel - 1) * 260)) + ((1 - this.enemyStrengthMultiplier) * 2200));
         if (this.enemyResources > 0 && this.enemySniperTimer >= sniperInterval && this.enemySnipers.length < this.maxEnemySnipers) {
-            this.enemySnipers.push(new EnemySniper(this.canvas.width, this.canvas.height));
+            this.enemySnipers.push(this.configureEnemyUnit(new EnemySniper(this.canvas.width, this.canvas.height)));
             this.enemySniperTimer = 0;
         }
 
         this.enemyTankTimer += deltaTime;
-        const tankInterval = Math.max(5000, 11000 - ((this.spawnIntensityLevel - 1) * 400));
+        const tankInterval = Math.max(1800, this.levelConfig.tankIntervalBase - ((this.spawnIntensityLevel - 1) * 220));
         if (this.enemyResources > 0 && this.enemyTankTimer >= tankInterval && this.enemyTanks.length < this.maxEnemyTanks) {
-            this.enemyTanks.push(new EnemyTank(this.canvas.width, this.canvas.height));
+            this.enemyTanks.push(this.configureEnemyUnit(new EnemyTank(this.canvas.width, this.canvas.height)));
             this.enemyTankTimer = 0;
         }
 
         this.enemyPlaneTimer += deltaTime;
-        const planeInterval = Math.max(7000, 16000 - ((this.spawnIntensityLevel - 1) * 500));
+        const planeInterval = Math.max(2500, this.levelConfig.planeIntervalBase - ((this.spawnIntensityLevel - 1) * 200));
         if (this.enemyResources > 0 && this.enemyPlaneTimer >= planeInterval && this.enemyPlanes.length < this.maxEnemyPlanes) {
-            this.enemyPlanes.push(new EnemyPlane(this.canvas.width, this.canvas.height));
+            this.enemyPlanes.push(this.configureEnemyUnit(new EnemyPlane(this.canvas.width, this.canvas.height)));
             this.enemyPlaneTimer = 0;
         }
 
         this.enemyBarbedWireTimer += deltaTime;
-        if (this.enemyResources > 0 && this.enemyBarbedWireTimer >= 9000 && this.enemyBarbedWires.length < 18) {
+        if (this.enemyResources > 0 && this.enemyBarbedWireTimer >= this.levelConfig.barbedWireInterval && this.enemyBarbedWires.length < 18 + this.campaignLevel) {
             this.enemyBarbedWires.push(new BarbedWire(
                 this.canvas.width * 0.58 + Math.random() * (this.canvas.width * 0.28),
                 80 + Math.random() * Math.max(120, this.canvas.height - 160)
@@ -505,17 +508,17 @@ class Game {
         }
 
         this.supplyCrateTimer += deltaTime;
-        if (this.supplyCrateTimer >= 20000 && this.supplyCrates.length < 2) {
+        if (this.supplyCrateTimer >= this.levelConfig.supplyCrateInterval && this.supplyCrates.length < 1) {
             this.supplyCrates.push(new SupplyCrate(this.canvas.width, this.canvas.height));
             this.supplyCrateTimer = 0;
         }
 
-        const nextWave = Math.floor(this.elapsedTime / 15000) + 1;
+        const nextWave = Math.floor(this.elapsedTime / this.levelConfig.waveIntervalMs) + 1;
         if (nextWave !== this.wave) {
             this.wave = nextWave;
             this.updateHUD();
-            this.dispatchGameEvent('levelUp', { wave: this.wave });
-            this.showEventBanner(`Wave ${this.wave} reached.`);
+            this.dispatchGameEvent('levelUp', { level: this.campaignLevel, wave: this.wave });
+            this.showEventBanner(`Level ${this.campaignLevel}: wave ${this.wave} reached.`);
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers, ...this.enemyTanks, ...this.enemyPlanes];
@@ -694,30 +697,30 @@ class Game {
 
     updateOceanBattle(deltaTime) {
         this.spawnTimer += deltaTime;
-        if (this.enemyResources > 0 && this.spawnTimer > 1800 && this.enemySubmarines.length < this.maxEnemySubmarines) {
+        if (this.enemyResources > 0 && this.spawnTimer > this.levelConfig.oceanSpawnInterval && this.enemySubmarines.length < this.maxEnemySubmarines) {
             const availableSlots = this.maxEnemySubmarines - this.enemySubmarines.length;
             const scaledSpawnCount = Math.max(1, Math.ceil((this.spawnIntensityLevel * this.enemyStrengthMultiplier) / 1.5));
             const spawnCount = Math.min(scaledSpawnCount, availableSlots);
 
             for (let i = 0; i < spawnCount; i++) {
-                this.enemySubmarines.push(new EnemySubmarine(this.canvas.width, this.canvas.height));
+                this.enemySubmarines.push(this.configureEnemyUnit(new EnemySubmarine(this.canvas.width, this.canvas.height)));
             }
             this.spawnTimer = 0;
         }
 
         this.enemyAircraftCarrierTimer += deltaTime;
-        const carrierInterval = Math.max(7000, 15000 - ((this.spawnIntensityLevel - 1) * 400));
+        const carrierInterval = Math.max(3000, this.levelConfig.carrierIntervalBase - ((this.spawnIntensityLevel - 1) * 180));
         if (this.enemyResources > 0 && this.enemyAircraftCarrierTimer >= carrierInterval && this.enemyAircraftCarriers.length < this.maxEnemyAircraftCarriers) {
-            this.enemyAircraftCarriers.push(new EnemyAircraftCarrier(this.canvas.width, this.canvas.height));
+            this.enemyAircraftCarriers.push(this.configureEnemyUnit(new EnemyAircraftCarrier(this.canvas.width, this.canvas.height)));
             this.enemyAircraftCarrierTimer = 0;
         }
 
-        const nextWave = Math.floor(this.elapsedTime / 15000) + 1;
+        const nextWave = Math.floor(this.elapsedTime / this.levelConfig.waveIntervalMs) + 1;
         if (nextWave !== this.wave) {
             this.wave = nextWave;
             this.updateHUD();
-            this.dispatchGameEvent('levelUp', { wave: this.wave, mapMode: 'ocean' });
-            this.showEventBanner(`Naval wave ${this.wave} reached.`);
+            this.dispatchGameEvent('levelUp', { level: this.campaignLevel, wave: this.wave, mapMode: 'ocean' });
+            this.showEventBanner(`Level ${this.campaignLevel}: naval wave ${this.wave} reached.`);
         }
 
         const hostileUnits = [...this.enemySubmarines, ...this.enemyAircraftCarriers];
@@ -817,6 +820,101 @@ class Game {
             { type: 'submarine', title: 'Submarine', cost: 140, mapModes: ['ocean'], summary: 'Stealth naval attacker.' },
             { type: 'aircraft-carrier', title: 'Aircraft Carrier', cost: 260, mapModes: ['ocean'], summary: 'Capital ship with planes.' }
         ];
+    }
+
+    createLevelConfig(level) {
+        const levelIndex = Math.max(0, level - 1);
+        const earlyEconomyBoost = level <= 3
+            ? [0, 0, 180, 120][level]
+            : 0;
+
+        return {
+            level,
+            startingGold: Math.max(760, 1500 - (levelIndex * 55) + earlyEconomyBoost),
+            lives: Math.max(8, 18 - Math.floor(levelIndex / 2)),
+            levelDurationMs: Math.max(32000, 105000 - (levelIndex * 4200)),
+            waveIntervalMs: Math.max(6500, 15000 - (levelIndex * 420)),
+            landSpawnInterval: Math.max(320, 1250 - (levelIndex * 32)),
+            oceanSpawnInterval: Math.max(700, 2100 - (levelIndex * 45)),
+            artilleryIntervalBase: Math.max(650, 6200 - (levelIndex * 180)),
+            sniperIntervalBase: Math.max(4200, 19500 - (levelIndex * 620)),
+            tankIntervalBase: Math.max(2400, 12500 - (levelIndex * 420)),
+            planeIntervalBase: Math.max(3200, 17500 - (levelIndex * 460)),
+            carrierIntervalBase: Math.max(4200, 16500 - (levelIndex * 390)),
+            barbedWireInterval: Math.max(5500, 10500 - (levelIndex * 180)),
+            supplyCrateInterval: Math.max(22000, 17000 + (levelIndex * 1200)),
+            spawnIntensityBonus: 1 + Math.floor(levelIndex / 2),
+            enemyStrengthFloor: Math.min(0.92, 0.35 + (levelIndex * 0.035)),
+            enemyHealthMultiplier: 1 + (levelIndex * 0.12),
+            enemySpeedMultiplier: 1 + (levelIndex * 0.018),
+            enemyFireRateMultiplier: Math.max(0.58, 1 - (levelIndex * 0.025)),
+            maxEnemySoldiers: 45 + (level * 14),
+            maxEnemyArtillery: 4 + Math.ceil(level * 1.5),
+            maxEnemySnipers: 3 + Math.ceil(level * 1.1),
+            maxEnemyTanks: 2 + Math.ceil(level * 1.3),
+            maxEnemyPlanes: 1 + Math.ceil(level * 0.85),
+            maxEnemySubmarines: 3 + Math.ceil(level * 1.35),
+            maxEnemyAircraftCarriers: 1 + Math.floor(level / 3)
+        };
+    }
+
+    applyLevelConfig() {
+        this.levelConfig = this.createLevelConfig(this.campaignLevel);
+        this.baseStartingGold = this.levelConfig.startingGold;
+        this.baseLives = this.levelConfig.lives;
+        this.maxEnemySoldiers = this.levelConfig.maxEnemySoldiers;
+        this.maxEnemyArtillery = this.levelConfig.maxEnemyArtillery;
+        this.maxEnemySnipers = this.levelConfig.maxEnemySnipers;
+        this.maxEnemyTanks = this.levelConfig.maxEnemyTanks;
+        this.maxEnemyPlanes = this.levelConfig.maxEnemyPlanes;
+        this.maxEnemySubmarines = this.levelConfig.maxEnemySubmarines;
+        this.maxEnemyAircraftCarriers = this.levelConfig.maxEnemyAircraftCarriers;
+    }
+
+    startNewCampaign() {
+        this.campaignLevel = 1;
+        this.score = 0;
+        this.pendingLevelAdvance = false;
+        this.applyLevelConfig();
+    }
+
+    advanceCampaignLevel() {
+        if (this.campaignLevel >= this.maxCampaignLevels) {
+            return false;
+        }
+
+        this.campaignLevel++;
+        this.pendingLevelAdvance = false;
+        this.applyLevelConfig();
+        return true;
+    }
+
+    configureEnemyUnit(unit) {
+        if (!unit) return unit;
+
+        unit.maxHealth *= this.levelConfig.enemyHealthMultiplier;
+        unit.health = unit.maxHealth;
+
+        if (typeof unit.baseMoveSpeed === 'number') {
+            unit.baseMoveSpeed *= this.levelConfig.enemySpeedMultiplier;
+            unit.moveSpeed = unit.baseMoveSpeed;
+        } else if (typeof unit.moveSpeed === 'number') {
+            unit.moveSpeed *= this.levelConfig.enemySpeedMultiplier;
+        }
+
+        if (typeof unit.fireRate === 'number') {
+            unit.fireRate = Math.max(10, Math.round(unit.fireRate * this.levelConfig.enemyFireRateMultiplier));
+        }
+
+        if (typeof unit.range === 'number') {
+            unit.range += (this.campaignLevel - 1) * 4;
+        }
+
+        if (typeof unit.visionRange === 'number') {
+            unit.visionRange += (this.campaignLevel - 1) * 8;
+        }
+
+        return unit;
     }
 
     getCardDefinition(type) {
@@ -978,6 +1076,7 @@ class Game {
     }
 
     updateHUD() {
+        document.getElementById('level-display').innerText = `${this.campaignLevel}/${this.maxCampaignLevels}`;
         document.getElementById('health-display').innerText = this.lives;
         document.getElementById('gold-display').innerText = this.gold;
         document.getElementById('wave-display').innerText = this.wave;
@@ -1256,9 +1355,11 @@ class Game {
     gameOver() {
         this.isPlaying = false;
         this.isPaused = false;
+        this.pendingLevelAdvance = false;
         this.dispatchGameEvent('gameOver', { score: this.score, result: 'defeat' });
+        document.getElementById('victory-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.remove('hidden');
-        document.getElementById('final-score').innerText = this.score;
+        document.getElementById('final-score').innerText = `${this.score} (Level ${this.campaignLevel})`;
         document.getElementById('hud').classList.add('hidden');
         document.getElementById('hud-actions').classList.add('hidden');
         document.getElementById('mobile-controls-toggle').classList.add('hidden');
@@ -1271,9 +1372,19 @@ class Game {
         this.isPlaying = false;
         this.isPaused = false;
         this.enemyDefeated = true;
+        this.pendingLevelAdvance = this.campaignLevel < this.maxCampaignLevels;
         this.dispatchGameEvent('gameOver', { score: this.score, result: 'victory' });
+        document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('victory-screen').classList.remove('hidden');
         document.getElementById('victory-score').innerText = this.score;
+        document.getElementById('victory-title').textContent = this.pendingLevelAdvance
+            ? `Level ${this.campaignLevel} Cleared`
+            : 'Campaign Complete';
+        document.getElementById('victory-message').textContent = this.pendingLevelAdvance
+            ? `Prepare for Level ${this.campaignLevel + 1}.`
+            : `You survived all ${this.maxCampaignLevels} levels.`;
+        document.getElementById('victory-restart-btn').textContent = this.pendingLevelAdvance ? 'Next Level' : 'Play Again';
+        document.getElementById('victory-restart-btn').classList.remove('hidden');
         document.getElementById('hud').classList.add('hidden');
         document.getElementById('hud-actions').classList.add('hidden');
         document.getElementById('mobile-controls-toggle').classList.add('hidden');
@@ -1709,10 +1820,14 @@ window.addEventListener('load', () => {
         deckLobbyScreen.classList.remove('hidden');
     };
 
-    const beginBattle = () => {
+    const beginBattle = (newCampaign = false) => {
         if (game.playerDeck.length !== game.maxDeckSize) {
             game.renderDeckLobby();
             return;
+        }
+
+        if (newCampaign) {
+            game.startNewCampaign();
         }
 
         hideFrontScreens();
@@ -1747,6 +1862,11 @@ window.addEventListener('load', () => {
     });
 
     victoryRestartBtn.addEventListener('click', () => {
+        if (game.pendingLevelAdvance && game.advanceCampaignLevel()) {
+            beginBattle(false);
+            return;
+        }
+
         location.reload();
     });
 
@@ -1813,7 +1933,7 @@ window.addEventListener('load', () => {
 
     lobbyStartBtn.addEventListener('click', async () => {
         await tryLockLandscape();
-        beginBattle();
+        beginBattle(true);
     });
 
     lobbyBackBtn.addEventListener('click', () => {
