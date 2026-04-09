@@ -265,6 +265,135 @@ p {
     background-color: #2d4f6b;
 }
 
+#country-select-screen {
+    padding: 28px 16px;
+    background:
+        radial-gradient(circle at 50% 18%, rgba(196, 226, 160, 0.2), transparent 28%),
+        linear-gradient(180deg, rgba(8, 18, 22, 0.9), rgba(7, 10, 13, 0.94));
+}
+
+.country-select-shell {
+    width: min(980px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.country-select-shell p {
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.continent-map {
+    position: relative;
+    width: min(820px, 92vw);
+    aspect-ratio: 2.1 / 1;
+    overflow: hidden;
+    border: 2px solid rgba(218, 239, 212, 0.36);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, #2d7d8f 0%, #1b5b72 58%, #143847 100%);
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.34);
+}
+
+.continent-map::before {
+    content: "";
+    position: absolute;
+    inset: 12% 8%;
+    clip-path: polygon(8% 30%, 20% 16%, 40% 12%, 53% 20%, 69% 14%, 87% 28%, 92% 51%, 80% 70%, 60% 75%, 48% 88%, 27% 78%, 11% 64%, 4% 48%);
+    background: linear-gradient(135deg, #6f914c 0%, #4e7a4e 48%, #78944d 100%);
+    filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.28));
+}
+
+.country-choice {
+    position: absolute;
+    top: 14%;
+    bottom: 13%;
+    width: 42%;
+    border: 2px solid rgba(255, 255, 255, 0.36);
+    color: #f2ffe6;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font: inherit;
+    text-shadow: 0 2px 3px rgba(0, 0, 0, 0.65);
+    transition: transform 0.12s ease, filter 0.2s ease, border-color 0.2s ease;
+}
+
+.country-choice:hover,
+.country-choice.selected {
+    transform: translateY(-3px);
+    filter: brightness(1.13);
+    border-color: #f8f2a9;
+}
+
+.left-country {
+    left: 9%;
+    clip-path: polygon(0 24%, 23% 4%, 63% 0, 100% 14%, 86% 50%, 100% 87%, 50% 100%, 13% 78%, 0 55%);
+    background: linear-gradient(145deg, rgba(75, 122, 77, 0.94), rgba(57, 101, 80, 0.96));
+}
+
+.right-country {
+    right: 8%;
+    clip-path: polygon(0 13%, 32% 0, 73% 8%, 100% 28%, 96% 62%, 73% 86%, 28% 100%, 0 84%, 14% 50%);
+    background: linear-gradient(145deg, rgba(139, 105, 66, 0.95), rgba(108, 127, 70, 0.96));
+}
+
+.country-name {
+    font-size: clamp(1rem, 3.6vw, 2rem);
+    font-weight: 800;
+}
+
+.country-note {
+    font-size: clamp(0.78rem, 2.1vw, 1rem);
+    color: #e2f2d8;
+}
+
+.country-border-line {
+    position: absolute;
+    top: 19%;
+    bottom: 15%;
+    left: 49.5%;
+    width: 3px;
+    background: repeating-linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.85) 0 12px,
+        transparent 12px 22px
+    );
+    transform: rotate(8deg);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.48);
+    pointer-events: none;
+}
+
+.continent-coast {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: rgba(220, 250, 234, 0.28);
+    pointer-events: none;
+}
+
+.north-coast {
+    top: 18%;
+    transform: rotate(-3deg);
+}
+
+.south-coast {
+    bottom: 16%;
+    transform: rotate(4deg);
+}
+
+.country-choice-actions {
+    display: flex;
+    justify-content: center;
+    pointer-events: auto;
+}
+
 .settings-panel {
     margin-top: 24px;
     padding: 16px;
@@ -577,6 +706,24 @@ p {
     .settings-panel {
         width: min(340px, 100%);
         min-width: 0;
+    }
+
+    .country-select-shell {
+        gap: 10px;
+    }
+
+    .continent-map {
+        width: min(420px, 96vw);
+        aspect-ratio: 1.55 / 1;
+    }
+
+    .country-choice {
+        gap: 3px;
+    }
+
+    .country-choice:hover,
+    .country-choice.selected {
+        transform: translateY(-2px);
     }
 
     #custom-map-modes,

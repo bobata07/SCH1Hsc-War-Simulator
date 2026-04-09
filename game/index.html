@@ -57,6 +57,29 @@
             </div>
         </div>
 
+        <div id="country-select-screen" class="screen hidden">
+            <div class="country-select-shell">
+                <h1>Choose Country</h1>
+                <p>Take command of one side of the continent.</p>
+                <div class="continent-map" aria-label="Two country continent map">
+                    <button type="button" class="country-choice left-country" data-country-side="left">
+                        <span class="country-name">Left Country</span>
+                        <span class="country-note">Western front</span>
+                    </button>
+                    <button type="button" class="country-choice right-country" data-country-side="right">
+                        <span class="country-name">Right Country</span>
+                        <span class="country-note">Eastern front</span>
+                    </button>
+                    <div class="continent-coast north-coast"></div>
+                    <div class="continent-coast south-coast"></div>
+                    <div class="country-border-line"></div>
+                </div>
+                <div class="country-choice-actions">
+                    <button id="country-back-btn" class="btn secondary-btn">Back</button>
+                </div>
+            </div>
+        </div>
+
         <div id="deck-lobby-screen" class="screen hidden">
             <div class="lobby-shell">
                 <h1>Deck Lobby</h1>
@@ -175,6 +198,7 @@
     <script src="js/artillery.js"></script>
     <script src="js/drone.js"></script>
     <script src="js/kamikazeTrain.js"></script>
+    <script src="js/airDefense.js"></script>
     <script src="js/submarine.js"></script>
     <script src="js/aircraftCarrier.js"></script>
     <script src="js/enemySubmarine.js"></script>

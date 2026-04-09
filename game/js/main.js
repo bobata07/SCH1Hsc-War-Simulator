@@ -16,6 +16,24 @@ class Game {
 
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+        this.worldWidth = this.canvas.width;
+        this.worldHeight = this.canvas.height;
+        this.viewScale = 1;
+        this.cameraX = 0;
+        this.cameraY = 0;
+        this.battlefieldZoom = 0.68;
+        this.mobileBattlefieldZoom = 0.78;
+        this.minBattlefieldZoom = 0.42;
+        this.maxBattlefieldZoom = 1.08;
+        this.frontLineX = 0;
+        this.frontLineSegments = [];
+        this.isDraggingMap = false;
+        this.didDragMap = false;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.lastDragX = 0;
+        this.lastDragY = 0;
+        this.dragThreshold = 5;
 
         // Game State
         this.lastTime = 0;
@@ -40,7 +58,13 @@ class Game {
         this.isEditingMap = false;
         this.customMapStorageKey = 'war-simulator-custom-map';
         this.deckStorageKey = 'war-simulator-player-deck';
+        this.countryStorageKey = 'war-simulator-country-side';
         this.maxDeckSize = 6;
+        this.countrySides = {
+            left: { name: 'Left Country', front: 'Western front' },
+            right: { name: 'Right Country', front: 'Eastern front' }
+        };
+        this.selectedCountrySide = this.loadCountrySide();
         this.customMapMode = 'land';
         this.editorTool = 'rock';
         this.customMapObjects = this.loadCustomMap();
@@ -69,6 +93,7 @@ class Game {
         this.artilleryUnits = [];
         this.drones = [];
         this.kamikazeTrains = [];
+        this.airDefenses = [];
         this.rocketStations = [];
         this.nuclearLaunchers = [];
         this.enemyArtilleryUnits = [];
@@ -120,6 +145,11 @@ class Game {
             }
 
             if (!this.isPlaying || this.isPaused) return;
+
+            const worldPoint = this.screenToWorldPoint(x, y);
+            x = worldPoint.x;
+            y = worldPoint.y;
+
             if (this.awaitingNukeTarget) {
                 this.launchNukeAt(x, y);
                 return;
@@ -286,6 +316,13 @@ class Game {
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
+            } else if (this.selectedUnitType === 'air-defense') {
+                if (this.gold >= 190) {
+                    this.airDefenses.push(new AirDefense(placeX, placeY));
+                    this.gold -= 190;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                }
             } else if (this.selectedUnitType === 'rocket-station') {
                 if (this.gold >= 140) {
                     this.rocketStations.push(new RocketStation(placeX, placeY));
@@ -304,7 +341,26 @@ class Game {
         };
 
         this.canvas.addEventListener('mousedown', (e) => {
+            if (this.canDragBattlefield(e.button)) {
+                e.preventDefault();
+                this.beginMapDrag(e.clientX, e.clientY);
+                return;
+            }
+
             handleInput(e.clientX, e.clientY, e.button);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            this.updateMapDrag(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            const dragResult = this.endMapDrag(e.clientX, e.clientY, e.button);
+            if (dragResult === 'click') {
+                handleInput(e.clientX, e.clientY, 0);
+                return;
+            }
+            if (dragResult) return;
         });
 
         this.canvas.addEventListener('contextmenu', (e) => {
@@ -318,7 +374,7 @@ class Game {
         }, { passive: false });
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            this.cycleVisibleUnitSelection(e.deltaY > 0 ? 1 : -1);
+            this.adjustBattlefieldZoom(e.deltaY, e.clientX, e.clientY);
         }, { passive: false });
 
         // Resize logic
@@ -363,15 +419,129 @@ class Game {
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        this.updateBattlefieldMetrics();
         if (this.isEditingMap) {
             this.drawEditor();
         }
     }
 
+    updateBattlefieldMetrics() {
+        const zoom = this.isPlaying && !this.isEditingMap
+            ? (this.isMobileLayout() ? this.mobileBattlefieldZoom : this.battlefieldZoom)
+            : 1;
+
+        this.viewScale = zoom;
+        this.worldWidth = this.isPlaying && !this.isEditingMap
+            ? this.canvas.width / this.minBattlefieldZoom
+            : this.canvas.width;
+        this.worldHeight = this.isPlaying && !this.isEditingMap
+            ? this.canvas.height / this.minBattlefieldZoom
+            : this.canvas.height;
+        this.clampCamera();
+    }
+
+    getBattlefieldWidth() {
+        return this.worldWidth || this.canvas.width;
+    }
+
+    getBattlefieldHeight() {
+        return this.worldHeight || this.canvas.height;
+    }
+
+    screenToWorldPoint(x, y) {
+        return {
+            x: (x / this.viewScale) + this.cameraX,
+            y: (y / this.viewScale) + this.cameraY
+        };
+    }
+
+    canDragBattlefield(button) {
+        return button === 0 && this.isPlaying && !this.isPaused && !this.isEditingMap;
+    }
+
+    beginMapDrag(x, y) {
+        this.isDraggingMap = true;
+        this.didDragMap = false;
+        this.dragStartX = x;
+        this.dragStartY = y;
+        this.lastDragX = x;
+        this.lastDragY = y;
+        this.canvas.style.cursor = 'grabbing';
+    }
+
+    updateMapDrag(x, y) {
+        if (!this.isDraggingMap) return;
+
+        const totalDx = x - this.dragStartX;
+        const totalDy = y - this.dragStartY;
+        const movedFarEnough = Math.hypot(totalDx, totalDy) >= this.dragThreshold;
+
+        if (!this.didDragMap && !movedFarEnough) return;
+
+        const dx = this.didDragMap ? x - this.lastDragX : totalDx;
+        const dy = this.didDragMap ? y - this.lastDragY : totalDy;
+        this.didDragMap = true;
+        this.lastDragX = x;
+        this.lastDragY = y;
+        this.cameraX -= dx / this.viewScale;
+        this.cameraY -= dy / this.viewScale;
+        this.clampCamera();
+    }
+
+    endMapDrag(x, y, button) {
+        if (!this.isDraggingMap || button !== 0) return false;
+
+        const didDrag = this.didDragMap;
+        this.isDraggingMap = false;
+        this.didDragMap = false;
+        this.canvas.style.cursor = '';
+
+        return didDrag ? true : 'click';
+    }
+
+    getVisibleWorldWidth() {
+        return this.canvas.width / this.viewScale;
+    }
+
+    getVisibleWorldHeight() {
+        return this.canvas.height / this.viewScale;
+    }
+
+    clampCamera() {
+        const maxCameraX = Math.max(0, this.getBattlefieldWidth() - this.getVisibleWorldWidth());
+        const maxCameraY = Math.max(0, this.getBattlefieldHeight() - this.getVisibleWorldHeight());
+        this.cameraX = Math.max(0, Math.min(maxCameraX, this.cameraX));
+        this.cameraY = Math.max(0, Math.min(maxCameraY, this.cameraY));
+    }
+
+    adjustBattlefieldZoom(deltaY, screenX = this.canvas.width / 2, screenY = this.canvas.height / 2) {
+        if (!this.isPlaying || this.isEditingMap) return;
+
+        const worldAnchor = this.screenToWorldPoint(screenX, screenY);
+        const zoomDelta = deltaY > 0 ? -0.06 : 0.06;
+        const currentZoom = this.isMobileLayout() ? this.mobileBattlefieldZoom : this.battlefieldZoom;
+        const nextZoom = Math.max(this.minBattlefieldZoom, Math.min(this.maxBattlefieldZoom, currentZoom + zoomDelta));
+
+        if (nextZoom === currentZoom) return;
+
+        if (this.isMobileLayout()) {
+            this.mobileBattlefieldZoom = nextZoom;
+        } else {
+            this.battlefieldZoom = nextZoom;
+        }
+
+        this.updateBattlefieldMetrics();
+        this.cameraX = worldAnchor.x - (screenX / this.viewScale);
+        this.cameraY = worldAnchor.y - (screenY / this.viewScale);
+        this.clampCamera();
+        this.frontLineSegments = [];
+    }
+
     start() {
+        this.isPlaying = true;
+        this.updateBattlefieldMetrics();
         this.applyLevelConfig();
         this.resetBattleState();
-        this.isPlaying = true;
         this.lastTime = performance.now();
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
@@ -388,8 +558,14 @@ class Game {
         this.supplyCrateTimer = 0;
         this.updateAvailableUnitsUI();
         this.updateHUD();
-        this.dispatchGameEvent('gameStart', { mapMode: this.customMapMode, level: this.campaignLevel });
-        this.showEventBanner(`Level ${this.campaignLevel}/${this.maxCampaignLevels} started on ${this.customMapMode} map.`);
+        const country = this.getSelectedCountry();
+        this.dispatchGameEvent('gameStart', {
+            mapMode: this.customMapMode,
+            level: this.campaignLevel,
+            countrySide: this.selectedCountrySide,
+            countryName: country.name
+        });
+        this.showEventBanner(`Level ${this.campaignLevel}/${this.maxCampaignLevels}: ${country.name} on ${this.customMapMode} map.`);
         requestAnimationFrame(this.loop);
     }
 
@@ -398,6 +574,11 @@ class Game {
         this.lives = this.baseLives;
         this.wave = 1;
         this.awaitingNukeTarget = false;
+        this.updateNukeButton();
+        this.cameraX = 0;
+        this.cameraY = 0;
+        this.frontLineX = 0;
+        this.frontLineSegments = [];
 
         this.enemies = [];
         this.towers = [];
@@ -420,6 +601,7 @@ class Game {
         this.artilleryUnits = [];
         this.drones = [];
         this.kamikazeTrains = [];
+        this.airDefenses = [];
         this.rocketStations = [];
         this.nuclearLaunchers = [];
         this.enemyArtilleryUnits = [];
@@ -447,6 +629,8 @@ class Game {
     }
 
     update(deltaTime) {
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
         this.elapsedTime += deltaTime;
         this.spawnIntensityLevel = Math.floor(this.elapsedTime / 10000) + 1 + this.levelConfig.spawnIntensityBonus;
         this.enemyResources = Math.max(0, 1 - (this.elapsedTime / this.levelConfig.levelDurationMs));
@@ -465,7 +649,7 @@ class Game {
             const spawnCount = Math.min(scaledSpawnCount, availableSlots);
 
             for (let i = 0; i < spawnCount; i++) {
-                this.enemies.push(this.configureEnemyUnit(new Enemy(this.canvas.width, this.canvas.height)));
+                this.enemies.push(this.configureEnemyUnit(new Enemy(fieldWidth, fieldHeight)));
             }
             this.spawnTimer = 0;
         }
@@ -473,43 +657,43 @@ class Game {
         this.enemyArtilleryTimer += deltaTime;
         const artilleryInterval = this.levelConfig.artilleryIntervalBase + ((1 - this.enemyStrengthMultiplier) * 1800);
         if (this.enemyResources > 0 && this.enemyArtilleryTimer >= artilleryInterval && this.enemyArtilleryUnits.length < this.maxEnemyArtillery) {
-            this.enemyArtilleryUnits.push(this.configureEnemyUnit(new EnemyArtillery(this.canvas.width, this.canvas.height)));
+            this.enemyArtilleryUnits.push(this.configureEnemyUnit(new EnemyArtillery(fieldWidth, fieldHeight)));
             this.enemyArtilleryTimer = 0;
         }
 
         this.enemySniperTimer += deltaTime;
         const sniperInterval = Math.max(2400, (this.levelConfig.sniperIntervalBase - ((this.spawnIntensityLevel - 1) * 260)) + ((1 - this.enemyStrengthMultiplier) * 2200));
         if (this.enemyResources > 0 && this.enemySniperTimer >= sniperInterval && this.enemySnipers.length < this.maxEnemySnipers) {
-            this.enemySnipers.push(this.configureEnemyUnit(new EnemySniper(this.canvas.width, this.canvas.height)));
+            this.enemySnipers.push(this.configureEnemyUnit(new EnemySniper(fieldWidth, fieldHeight)));
             this.enemySniperTimer = 0;
         }
 
         this.enemyTankTimer += deltaTime;
         const tankInterval = Math.max(1800, this.levelConfig.tankIntervalBase - ((this.spawnIntensityLevel - 1) * 220));
         if (this.enemyResources > 0 && this.enemyTankTimer >= tankInterval && this.enemyTanks.length < this.maxEnemyTanks) {
-            this.enemyTanks.push(this.configureEnemyUnit(new EnemyTank(this.canvas.width, this.canvas.height)));
+            this.enemyTanks.push(this.configureEnemyUnit(new EnemyTank(fieldWidth, fieldHeight)));
             this.enemyTankTimer = 0;
         }
 
         this.enemyPlaneTimer += deltaTime;
         const planeInterval = Math.max(2500, this.levelConfig.planeIntervalBase - ((this.spawnIntensityLevel - 1) * 200));
         if (this.enemyResources > 0 && this.enemyPlaneTimer >= planeInterval && this.enemyPlanes.length < this.maxEnemyPlanes) {
-            this.enemyPlanes.push(this.configureEnemyUnit(new EnemyPlane(this.canvas.width, this.canvas.height)));
+            this.enemyPlanes.push(this.configureEnemyUnit(new EnemyPlane(fieldWidth, fieldHeight)));
             this.enemyPlaneTimer = 0;
         }
 
         this.enemyBarbedWireTimer += deltaTime;
         if (this.enemyResources > 0 && this.enemyBarbedWireTimer >= this.levelConfig.barbedWireInterval && this.enemyBarbedWires.length < 18 + this.campaignLevel) {
             this.enemyBarbedWires.push(new BarbedWire(
-                this.canvas.width * 0.58 + Math.random() * (this.canvas.width * 0.28),
-                80 + Math.random() * Math.max(120, this.canvas.height - 160)
+                fieldWidth * 0.58 + Math.random() * (fieldWidth * 0.28),
+                80 + Math.random() * Math.max(120, fieldHeight - 160)
             ));
             this.enemyBarbedWireTimer = 0;
         }
 
         this.supplyCrateTimer += deltaTime;
         if (this.supplyCrateTimer >= this.levelConfig.supplyCrateInterval && this.supplyCrates.length < 1) {
-            this.supplyCrates.push(new SupplyCrate(this.canvas.width, this.canvas.height));
+            this.supplyCrates.push(new SupplyCrate(fieldWidth, fieldHeight));
             this.supplyCrateTimer = 0;
         }
 
@@ -522,10 +706,12 @@ class Game {
         }
 
         const hostileUnits = [...this.enemies, ...this.enemyArtilleryUnits, ...this.enemySnipers, ...this.enemyTanks, ...this.enemyPlanes];
-        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.submarines, ...this.aircraftCarriers, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.kamikazeTrains, ...this.rocketStations, ...this.bunkers];
+        const playerCombatUnits = [...this.soldiers, ...this.tanks, ...this.planes, ...this.submarines, ...this.aircraftCarriers, ...this.bulldozers, ...this.snipers, ...this.artilleryUnits, ...this.drones, ...this.kamikazeTrains, ...this.airDefenses, ...this.rocketStations, ...this.bunkers];
 
         this.radiationZones.forEach(zone => {
-            zone.duration -= deltaTime;
+            if (!zone.permanent) {
+                zone.duration -= deltaTime;
+            }
             this.enemies.forEach(enemy => {
                 const dist = Math.hypot(enemy.x - zone.x, enemy.y - zone.y);
                 if (dist <= zone.radius) {
@@ -533,7 +719,7 @@ class Game {
                 }
             });
         });
-        this.radiationZones = this.radiationZones.filter(zone => zone.duration > 0);
+        this.radiationZones = this.radiationZones.filter(zone => zone.permanent || zone.duration > 0);
         this.supplyCrates.forEach(crate => crate.update(deltaTime));
         this.supplyCrates = this.supplyCrates.filter(crate => !crate.markedForDeletion);
 
@@ -550,11 +736,11 @@ class Game {
         });
 
         // Update Enemies
-        this.enemies.forEach(e => e.update(playerCombatUnits, this.canvas.width, this.canvas.height));
+        this.enemies.forEach(e => e.update(playerCombatUnits, fieldWidth, fieldHeight));
         this.enemyArtilleryUnits.forEach(e => e.update(playerCombatUnits));
         this.enemySnipers.forEach(e => e.update(playerCombatUnits));
-        this.enemyTanks.forEach(e => e.update(playerCombatUnits, this.canvas.width, this.canvas.height));
-        this.enemyPlanes.forEach(e => e.update(playerCombatUnits, this.canvas.width, this.canvas.height));
+        this.enemyTanks.forEach(e => e.update(playerCombatUnits, fieldWidth, fieldHeight));
+        this.enemyPlanes.forEach(e => e.update(playerCombatUnits, fieldWidth, fieldHeight));
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
@@ -625,17 +811,17 @@ class Game {
 
         // Update Towers
         this.towers.forEach(t => t.update(hostileUnits));
-        this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers, this.canvas.width, this.canvas.height));
-        this.tankSpawnTowers.forEach(t => t.update(deltaTime, this.tanks, this.canvas.width, this.canvas.height));
+        this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers, fieldWidth, fieldHeight));
+        this.tankSpawnTowers.forEach(t => t.update(deltaTime, this.tanks, fieldWidth, fieldHeight));
 
         // Update Soldiers
         const friendlyMovers = [...this.soldiers, ...this.tanks];
 
-        this.soldiers.forEach(s => s.update(hostileUnits, friendlyMovers, this.bunkers, this.canvas.width, this.canvas.height));
+        this.soldiers.forEach(s => s.update(hostileUnits, friendlyMovers, this.bunkers, fieldWidth, fieldHeight));
         this.soldiers = this.soldiers.filter(s => !s.markedForDeletion);
 
         // Update Tanks
-        this.tanks.forEach(t => t.update(hostileUnits, friendlyMovers, this.canvas.width, this.canvas.height));
+        this.tanks.forEach(t => t.update(hostileUnits, friendlyMovers, fieldWidth, fieldHeight));
         for (let i = this.tanks.length - 1; i >= 0; i--) {
             const tank = this.tanks[i];
             if (tank.markedForDeletion) {
@@ -647,18 +833,18 @@ class Game {
         }
 
         // Update Planes
-        this.planes.forEach(p => p.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.planes.forEach(p => p.update(hostileUnits, fieldWidth, fieldHeight));
         this.planes = this.planes.filter(p => !p.markedForDeletion);
 
         // Update Naval Units
-        this.submarines.forEach(submarine => submarine.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.submarines.forEach(submarine => submarine.update(hostileUnits, fieldWidth, fieldHeight));
         this.submarines = this.submarines.filter(submarine => !submarine.markedForDeletion);
-        this.aircraftCarriers.forEach(carrier => carrier.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.aircraftCarriers.forEach(carrier => carrier.update(hostileUnits, fieldWidth, fieldHeight));
         this.aircraftCarriers = this.aircraftCarriers.filter(carrier => !carrier.markedForDeletion);
 
         // Update Bulldozers
         this.bulldozers.forEach(b => {
-            const repairedTank = b.update(this.radiationZones, this.tankWrecks, this.repairBases, this.canvas.width, this.canvas.height);
+            const repairedTank = b.update(this.radiationZones, this.tankWrecks, this.repairBases, fieldWidth, fieldHeight);
             if (repairedTank) {
                 this.tanks.push(repairedTank);
             }
@@ -679,12 +865,16 @@ class Game {
         this.artilleryUnits = this.artilleryUnits.filter(a => !a.markedForDeletion);
 
         // Update Drones
-        this.drones.forEach(d => d.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.drones.forEach(d => d.update(hostileUnits, fieldWidth, fieldHeight));
         this.drones = this.drones.filter(d => !d.markedForDeletion);
 
         // Update Kamikaze Trains
-        this.kamikazeTrains.forEach(train => train.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.kamikazeTrains.forEach(train => train.update(hostileUnits, fieldWidth, fieldHeight));
         this.kamikazeTrains = this.kamikazeTrains.filter(train => !train.markedForDeletion);
+
+        // Update Air Defenses
+        this.airDefenses.forEach(defense => defense.update(hostileUnits));
+        this.airDefenses = this.airDefenses.filter(defense => !defense.markedForDeletion);
 
         // Update Rocket Stations
         this.rocketStations.forEach(r => r.update(this.enemyArtilleryUnits));
@@ -696,6 +886,9 @@ class Game {
     }
 
     updateOceanBattle(deltaTime) {
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
+
         this.spawnTimer += deltaTime;
         if (this.enemyResources > 0 && this.spawnTimer > this.levelConfig.oceanSpawnInterval && this.enemySubmarines.length < this.maxEnemySubmarines) {
             const availableSlots = this.maxEnemySubmarines - this.enemySubmarines.length;
@@ -703,7 +896,7 @@ class Game {
             const spawnCount = Math.min(scaledSpawnCount, availableSlots);
 
             for (let i = 0; i < spawnCount; i++) {
-                this.enemySubmarines.push(this.configureEnemyUnit(new EnemySubmarine(this.canvas.width, this.canvas.height)));
+                this.enemySubmarines.push(this.configureEnemyUnit(new EnemySubmarine(fieldWidth, fieldHeight)));
             }
             this.spawnTimer = 0;
         }
@@ -711,7 +904,7 @@ class Game {
         this.enemyAircraftCarrierTimer += deltaTime;
         const carrierInterval = Math.max(3000, this.levelConfig.carrierIntervalBase - ((this.spawnIntensityLevel - 1) * 180));
         if (this.enemyResources > 0 && this.enemyAircraftCarrierTimer >= carrierInterval && this.enemyAircraftCarriers.length < this.maxEnemyAircraftCarriers) {
-            this.enemyAircraftCarriers.push(this.configureEnemyUnit(new EnemyAircraftCarrier(this.canvas.width, this.canvas.height)));
+            this.enemyAircraftCarriers.push(this.configureEnemyUnit(new EnemyAircraftCarrier(fieldWidth, fieldHeight)));
             this.enemyAircraftCarrierTimer = 0;
         }
 
@@ -726,8 +919,8 @@ class Game {
         const hostileUnits = [...this.enemySubmarines, ...this.enemyAircraftCarriers];
         const playerCombatUnits = [...this.submarines, ...this.aircraftCarriers];
 
-        this.enemySubmarines.forEach(enemy => enemy.update(playerCombatUnits, this.canvas.width, this.canvas.height));
-        this.enemyAircraftCarriers.forEach(enemy => enemy.update(playerCombatUnits, this.canvas.width, this.canvas.height));
+        this.enemySubmarines.forEach(enemy => enemy.update(playerCombatUnits, fieldWidth, fieldHeight));
+        this.enemyAircraftCarriers.forEach(enemy => enemy.update(playerCombatUnits, fieldWidth, fieldHeight));
 
         for (let i = this.enemySubmarines.length - 1; i >= 0; i--) {
             const enemy = this.enemySubmarines[i];
@@ -754,14 +947,24 @@ class Game {
             return;
         }
 
-        this.submarines.forEach(submarine => submarine.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.submarines.forEach(submarine => submarine.update(hostileUnits, fieldWidth, fieldHeight));
         this.submarines = this.submarines.filter(submarine => !submarine.markedForDeletion);
-        this.aircraftCarriers.forEach(carrier => carrier.update(hostileUnits, this.canvas.width, this.canvas.height));
+        this.aircraftCarriers.forEach(carrier => carrier.update(hostileUnits, fieldWidth, fieldHeight));
         this.aircraftCarriers = this.aircraftCarriers.filter(carrier => !carrier.markedForDeletion);
     }
 
     draw() {
+        this.ctx.save();
+        this.ctx.setTransform(
+            this.viewScale,
+            0,
+            0,
+            this.viewScale,
+            -this.cameraX * this.viewScale,
+            -this.cameraY * this.viewScale
+        );
         this.drawBattlefieldBackground();
+        this.drawTerritoryOverlay();
         this.drawCustomMapObjects(this.ctx);
 
         this.enemies.forEach(e => e.draw(this.ctx));
@@ -793,8 +996,217 @@ class Game {
         this.artilleryUnits.forEach(a => a.draw(this.ctx));
         this.drones.forEach(d => d.draw(this.ctx));
         this.kamikazeTrains.forEach(train => train.draw(this.ctx));
+        this.airDefenses.forEach(defense => defense.draw(this.ctx));
         this.rocketStations.forEach(r => r.draw(this.ctx));
         this.nuclearLaunchers.forEach(n => n.draw(this.ctx));
+        this.ctx.restore();
+        this.drawTerritoryStatsOverlay();
+    }
+
+    getFriendlyTerritoryUnits() {
+        return [
+            ...this.soldiers,
+            ...this.tanks,
+            ...this.planes,
+            ...this.submarines,
+            ...this.aircraftCarriers,
+            ...this.bulldozers,
+            ...this.snipers,
+            ...this.artilleryUnits,
+            ...this.drones,
+            ...this.kamikazeTrains,
+            ...this.airDefenses,
+            ...this.rocketStations,
+            ...this.nuclearLaunchers,
+            ...this.bunkers,
+            ...this.towers,
+            ...this.spawnTowers,
+            ...this.tankSpawnTowers
+        ].filter(unit => unit && !unit.markedForDeletion);
+    }
+
+    getHostileTerritoryUnits() {
+        return [
+            ...this.enemies,
+            ...this.enemyArtilleryUnits,
+            ...this.enemySnipers,
+            ...this.enemyTanks,
+            ...this.enemyPlanes,
+            ...this.enemySubmarines,
+            ...this.enemyAircraftCarriers
+        ].filter(unit => unit && !unit.markedForDeletion);
+    }
+
+    getTerritoryUnitWeight(unit) {
+        const healthRatio = typeof unit.health === 'number' && typeof unit.maxHealth === 'number'
+            ? Math.max(0.15, unit.health / unit.maxHealth)
+            : 1;
+        const durability = typeof unit.maxHealth === 'number'
+            ? Math.min(2.4, Math.max(0.75, unit.maxHealth / 120))
+            : 1;
+        const rangeBoost = typeof unit.range === 'number' && unit.range >= 240 ? 1.2 : 1;
+        return healthRatio * durability * rangeBoost;
+    }
+
+    getWeightedFrontEdge(samples, fallbackX, quantile) {
+        if (!samples.length) return fallbackX;
+
+        const sortedSamples = samples.slice().sort((a, b) => a.x - b.x);
+        const totalWeight = sortedSamples.reduce((total, sample) => total + sample.weight, 0);
+        const targetWeight = totalWeight * quantile;
+        let runningWeight = 0;
+
+        for (const sample of sortedSamples) {
+            runningWeight += sample.weight;
+            if (runningWeight >= targetWeight) {
+                return sample.x;
+            }
+        }
+
+        return sortedSamples[sortedSamples.length - 1].x;
+    }
+
+    getBandFrontX(y, friendlyUnits, hostileUnits) {
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
+        const verticalInfluence = Math.max(110, fieldHeight * 0.18);
+        const defaultFriendlyEdge = fieldWidth * (0.22 + ((1 - this.enemyResources) * 0.18));
+        const defaultHostileEdge = fieldWidth * (0.82 - ((1 - this.enemyResources) * 0.22));
+        let friendlyTotal = 0;
+        let hostileTotal = 0;
+        const friendlySamples = [];
+        const hostileSamples = [];
+
+        for (const unit of friendlyUnits) {
+            const dy = Math.abs(unit.y - y);
+            if (dy > verticalInfluence) continue;
+            const weight = this.getTerritoryUnitWeight(unit) * (1 - (dy / verticalInfluence));
+            friendlyTotal += weight;
+            friendlySamples.push({ x: unit.x, weight });
+        }
+
+        for (const unit of hostileUnits) {
+            const dy = Math.abs(unit.y - y);
+            if (dy > verticalInfluence) continue;
+            const weight = this.getTerritoryUnitWeight(unit) * (1 - (dy / verticalInfluence));
+            hostileTotal += weight;
+            hostileSamples.push({ x: unit.x, weight });
+        }
+
+        const friendlyEdge = this.getWeightedFrontEdge(friendlySamples, defaultFriendlyEdge, 0.78);
+        const hostileEdge = this.getWeightedFrontEdge(hostileSamples, defaultHostileEdge, 0.22);
+        const pressure = friendlyTotal + hostileTotal > 0
+            ? (friendlyTotal - hostileTotal) / (friendlyTotal + hostileTotal)
+            : 0;
+        const midpoint = (friendlyEdge + hostileEdge) / 2;
+        const pressureOffset = pressure * fieldWidth * 0.08;
+
+        return Math.max(fieldWidth * 0.08, Math.min(fieldWidth * 0.92, midpoint + pressureOffset));
+    }
+
+    calculateFrontLineSegments() {
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
+        const friendlyUnits = this.getFriendlyTerritoryUnits();
+        const hostileUnits = this.getHostileTerritoryUnits();
+        const bandCount = 12;
+        const segments = [];
+        let totalX = 0;
+
+        for (let i = 0; i <= bandCount; i++) {
+            const y = (i / bandCount) * fieldHeight;
+            const rawX = this.getBandFrontX(y, friendlyUnits, hostileUnits);
+            const previous = this.frontLineSegments[i];
+            const x = previous ? previous.x + ((rawX - previous.x) * 0.18) : rawX;
+            segments.push({ x, y });
+            totalX += x;
+        }
+
+        this.frontLineSegments = segments;
+        this.frontLineX = totalX / segments.length;
+
+        return segments;
+    }
+
+    calculateFrontLineX() {
+        if (!this.frontLineSegments.length) {
+            this.calculateFrontLineSegments();
+        }
+
+        return this.frontLineX || this.getBattlefieldWidth() * 0.5;
+    }
+
+    drawTerritoryOverlay() {
+        if (!this.isPlaying) return;
+
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
+        const frontSegments = this.calculateFrontLineSegments();
+        const frontX = this.frontLineX;
+        const leftIsPlayer = this.selectedCountrySide === 'left';
+        const leftColor = leftIsPlayer ? 'rgba(52, 138, 91, 0.22)' : 'rgba(160, 80, 67, 0.2)';
+        const rightColor = leftIsPlayer ? 'rgba(160, 80, 67, 0.2)' : 'rgba(52, 138, 91, 0.22)';
+
+        this.ctx.fillStyle = leftColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, 0);
+        frontSegments.forEach(point => this.ctx.lineTo(point.x, point.y));
+        this.ctx.lineTo(0, fieldHeight);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.fillStyle = rightColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(fieldWidth, 0);
+        this.ctx.lineTo(frontSegments[0].x, frontSegments[0].y);
+        frontSegments.forEach(point => this.ctx.lineTo(point.x, point.y));
+        this.ctx.lineTo(fieldWidth, fieldHeight);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.strokeStyle = 'rgba(255, 246, 174, 0.84)';
+        this.ctx.lineWidth = 4;
+        this.ctx.beginPath();
+        frontSegments.forEach((point, index) => {
+            const x = point.x + Math.sin((point.y / 48) + (performance.now() / 600)) * 6;
+            if (index === 0) this.ctx.moveTo(x, point.y);
+            else this.ctx.lineTo(x, point.y);
+        });
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = 'rgba(255, 246, 174, 0.9)';
+        this.ctx.font = 'bold 18px Segoe UI';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('FRONT', frontX, Math.max(96, fieldHeight * 0.16));
+    }
+
+    drawTerritoryStatsOverlay() {
+        if (!this.isPlaying) return;
+
+        const leftPercent = Math.round((this.calculateFrontLineX() / this.getBattlefieldWidth()) * 100);
+        const rightPercent = 100 - leftPercent;
+        const x = this.canvas.width * 0.5;
+        const y = this.isMobileLayout() ? 66 : 16;
+        const width = Math.min(360, this.canvas.width - 28);
+        const height = 40;
+        const barWidth = width - 26;
+        const barHeight = 12;
+        const leftBarWidth = barWidth * (leftPercent / 100);
+
+        this.ctx.fillStyle = 'rgba(5, 10, 12, 0.68)';
+        this.ctx.beginPath();
+        this.ctx.roundRect(x - width / 2, y, width, height, 7);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = 'rgba(52, 138, 91, 0.92)';
+        this.ctx.fillRect(x - barWidth / 2, y + 9, leftBarWidth, barHeight);
+        this.ctx.fillStyle = 'rgba(160, 80, 67, 0.92)';
+        this.ctx.fillRect(x - barWidth / 2 + leftBarWidth, y + 9, barWidth - leftBarWidth, barHeight);
+
+        this.ctx.fillStyle = '#f2f5e8';
+        this.ctx.font = '12px Segoe UI';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`Left Country ${leftPercent}% | Right Country ${rightPercent}% | Zoom ${Math.round(this.viewScale * 100)}%`, x, y + 32);
     }
 
     createCardDefinitions() {
@@ -815,6 +1227,7 @@ class Game {
             { type: 'artillery', title: 'Artillery', cost: 120, mapModes: ['land'], summary: 'Ranged explosive support.' },
             { type: 'drone', title: 'Drone', cost: 110, mapModes: ['land'], summary: 'Fast airborne harassment.' },
             { type: 'kamikaze-train', title: 'Kamikaze Train', cost: 210, mapModes: ['land'], summary: 'High-risk burst attack.' },
+            { type: 'air-defense', title: 'Air Defense', cost: 190, mapModes: ['land'], summary: 'Radar-guided rocket battery.' },
             { type: 'rocket-station', title: 'Rocket Station', cost: 140, mapModes: ['land'], summary: 'Unlocks rocket strikes.' },
             { type: 'nuclear-launcher', title: 'Nuclear Launcher', cost: 400, mapModes: ['land'], summary: 'Unlocks tactical nukes.' },
             { type: 'submarine', title: 'Submarine', cost: 140, mapModes: ['ocean'], summary: 'Stealth naval attacker.' },
@@ -887,6 +1300,35 @@ class Game {
         this.pendingLevelAdvance = false;
         this.applyLevelConfig();
         return true;
+    }
+
+    loadCountrySide() {
+        try {
+            const savedSide = localStorage.getItem(this.countryStorageKey);
+            return savedSide === 'right' ? 'right' : 'left';
+        } catch {
+            return 'left';
+        }
+    }
+
+    saveCountrySide() {
+        localStorage.setItem(this.countryStorageKey, this.selectedCountrySide);
+    }
+
+    getSelectedCountry() {
+        return this.countrySides[this.selectedCountrySide] || this.countrySides.left;
+    }
+
+    setCountrySide(side) {
+        this.selectedCountrySide = side === 'right' ? 'right' : 'left';
+        this.saveCountrySide();
+        this.renderCountrySelection();
+    }
+
+    renderCountrySelection() {
+        document.querySelectorAll('[data-country-side]').forEach(button => {
+            button.classList.toggle('selected', button.dataset.countrySide === this.selectedCountrySide);
+        });
     }
 
     configureEnemyUnit(unit) {
@@ -996,7 +1438,8 @@ class Game {
             return;
         }
 
-        subtitle.textContent = `Build a 6-card weapon deck for the next ${this.customMapMode} battle.`;
+        const country = this.getSelectedCountry();
+        subtitle.textContent = `Build a 6-card weapon deck for ${country.name}'s next ${this.customMapMode} battle.`;
         deckCount.textContent = `${this.playerDeck.length} / ${this.maxDeckSize}`;
         deckSlots.innerHTML = '';
 
@@ -1116,12 +1559,14 @@ class Game {
         this.isEditingMap = true;
         this.isPlaying = false;
         this.isPaused = false;
+        this.updateBattlefieldMetrics();
         this.updateEditorModeUI();
         this.drawEditor();
     }
 
     closeCustomMapEditor() {
         this.isEditingMap = false;
+        this.updateBattlefieldMetrics();
     }
 
     setEditorTool(tool) {
@@ -1259,7 +1704,8 @@ class Game {
 
     drawBattlefieldBackground(editorView = false) {
         const { ctx } = this;
-        const { width, height } = this.canvas;
+        const width = editorView ? this.canvas.width : this.getBattlefieldWidth();
+        const height = editorView ? this.canvas.height : this.getBattlefieldHeight();
 
         if (this.customMapMode === 'ocean') {
             const water = ctx.createLinearGradient(0, 0, 0, height);
@@ -1356,6 +1802,8 @@ class Game {
         this.isPlaying = false;
         this.isPaused = false;
         this.pendingLevelAdvance = false;
+        this.awaitingNukeTarget = false;
+        this.updateNukeButton();
         this.dispatchGameEvent('gameOver', { score: this.score, result: 'defeat' });
         document.getElementById('victory-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.remove('hidden');
@@ -1372,6 +1820,8 @@ class Game {
         this.isPlaying = false;
         this.isPaused = false;
         this.enemyDefeated = true;
+        this.awaitingNukeTarget = false;
+        this.updateNukeButton();
         this.pendingLevelAdvance = this.campaignLevel < this.maxCampaignLevels;
         this.dispatchGameEvent('gameOver', { score: this.score, result: 'victory' });
         document.getElementById('game-over-screen').classList.add('hidden');
@@ -1528,15 +1978,16 @@ class Game {
 
     armNukeLaunch() {
         if (!this.nuclearLaunchers.length || this.isPaused || !this.isPlaying) return;
-        this.awaitingNukeTarget = true;
-        document.getElementById('btn-launch-nuke').textContent = 'Click Ground';
+        this.awaitingNukeTarget = !this.awaitingNukeTarget;
+        this.updateNukeButton();
     }
 
     launchNukeAt(x, y) {
-        this.awaitingNukeTarget = false;
-        document.getElementById('btn-launch-nuke').textContent = 'Launch Nuke';
-
-        if (!this.nuclearLaunchers.length) return;
+        if (!this.nuclearLaunchers.length) {
+            this.awaitingNukeTarget = false;
+            this.updateNukeButton();
+            return;
+        }
 
         let closest = null;
         let minDist = Infinity;
@@ -1551,6 +2002,13 @@ class Game {
         if (closest) {
             closest.launchAt(x, y);
         }
+    }
+
+    updateNukeButton() {
+        const button = document.getElementById('btn-launch-nuke');
+        if (!button) return;
+
+        button.textContent = this.awaitingNukeTarget ? 'Nukes Armed' : 'Launch Nuke';
     }
 
     detonateNuke(x, y) {
@@ -1587,13 +2045,15 @@ class Game {
             x,
             y,
             radius: 95,
-            duration: 10000,
+            duration: Infinity,
+            permanent: true,
             damagePerSecond: 38
         });
     }
 
     removeOwnedObjectAt(x, y) {
         const removableCollections = [
+            { list: this.airDefenses, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 36) },
             { list: this.rocketStations, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 36, 36) },
             { list: this.nuclearLaunchers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
             { list: this.artilleryUnits, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 32, 24) },
@@ -1644,6 +2104,7 @@ class Game {
             artillery: 18,
             drone: 14,
             'kamikaze-train': 20,
+            'air-defense': 22,
             'rocket-station': 20,
             'nuclear-launcher': 22,
             submarine: 24,
@@ -1655,20 +2116,22 @@ class Game {
 
     isPlacementAllowedAt(x, y, type) {
         const radius = this.getPlacementRadius(type);
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
 
         if (type === 'submarine' || type === 'aircraft-carrier') {
             return (
                 x >= radius &&
-                x <= this.canvas.width - radius &&
+                x <= fieldWidth - radius &&
                 y >= radius &&
-                y <= this.canvas.height - radius
+                y <= fieldHeight - radius
             );
         }
 
-        const bounds = Soldier.getBattleBounds(this.canvas.width, this.canvas.height, radius);
+        const bounds = Soldier.getBattleBounds(fieldWidth, fieldHeight, radius);
         return (
             x >= radius &&
-            x <= this.canvas.width - radius &&
+            x <= fieldWidth - radius &&
             y >= bounds.top &&
             y <= bounds.bottom
         );
@@ -1721,6 +2184,7 @@ window.addEventListener('load', () => {
 
     const orientationScreen = document.getElementById('orientation-screen');
     const startScreen = document.getElementById('start-screen');
+    const countrySelectScreen = document.getElementById('country-select-screen');
     const deckLobbyScreen = document.getElementById('deck-lobby-screen');
     const customMapScreen = document.getElementById('custom-map-screen');
     const controls = document.getElementById('controls');
@@ -1730,6 +2194,8 @@ window.addEventListener('load', () => {
     const lobbyStartBtn = document.getElementById('lobby-start-btn');
     const lobbyBackBtn = document.getElementById('lobby-back-btn');
     const startBtn = document.getElementById('start-btn');
+    const countryBackBtn = document.getElementById('country-back-btn');
+    const countryButtons = document.querySelectorAll('[data-country-side]');
     const customMapBtn = document.getElementById('custom-map-btn');
     const restartBtn = document.getElementById('restart-btn');
     const menuBtn = document.getElementById('menu-btn');
@@ -1796,12 +2262,24 @@ window.addEventListener('load', () => {
 
     const hideFrontScreens = () => {
         startScreen.classList.add('hidden');
+        countrySelectScreen.classList.add('hidden');
         deckLobbyScreen.classList.add('hidden');
         customMapScreen.classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('victory-screen').classList.add('hidden');
         document.getElementById('pause-screen').classList.add('hidden');
         document.getElementById('settings-screen').classList.add('hidden');
+    };
+
+    const openCountrySelect = () => {
+        hideFrontScreens();
+        controls.classList.add('hidden');
+        document.getElementById('hud').classList.add('hidden');
+        document.getElementById('hud-actions').classList.add('hidden');
+        document.getElementById('mobile-controls-toggle').classList.add('hidden');
+        game.closeCustomMapEditor();
+        game.renderCountrySelection();
+        countrySelectScreen.classList.remove('hidden');
     };
 
     const openDeckLobby = (returnScreen = 'start') => {
@@ -1843,7 +2321,19 @@ window.addEventListener('load', () => {
 
     startBtn.addEventListener('click', async () => {
         await tryLockLandscape();
-        openDeckLobby('start');
+        openCountrySelect();
+    });
+
+    countryButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            game.setCountrySide(button.dataset.countrySide);
+            openDeckLobby('country-select');
+        });
+    });
+
+    countryBackBtn.addEventListener('click', () => {
+        countrySelectScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
     });
 
     customMapBtn.addEventListener('click', async () => {
@@ -1945,6 +2435,11 @@ window.addEventListener('load', () => {
             return;
         }
 
+        if (lobbyReturnScreen === 'country-select') {
+            openCountrySelect();
+            return;
+        }
+
         startScreen.classList.remove('hidden');
     });
 
@@ -2001,6 +2496,7 @@ window.addEventListener('load', () => {
     });
 
     game.renderDeckLobby();
+    game.renderCountrySelection();
     game.updateAvailableUnitsUI();
     updateOrientationGate();
 });

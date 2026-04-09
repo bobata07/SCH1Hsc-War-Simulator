@@ -9,6 +9,9 @@ class Projectile {
         this.radius = radius;
         this.instantHit = effects.instantHit || false;
         this.displayFrames = effects.displayFrames || 0;
+        this.splashRadius = effects.splashRadius || 0;
+        this.splashDamage = effects.splashDamage || damage;
+        this.splashTargets = effects.splashTargets || [];
         this.markedForDeletion = false;
 
         if (this.instantHit && this.target && !this.target.markedForDeletion) {
@@ -49,7 +52,21 @@ class Projectile {
 
     hitTarget() {
         this.target.takeDamage(this.damage);
+        this.applySplashDamage();
         this.markedForDeletion = !this.instantHit;
+    }
+
+    applySplashDamage() {
+        if (!this.splashRadius || !this.splashTargets.length) return;
+
+        for (const target of this.splashTargets) {
+            if (!target || target === this.target || target.markedForDeletion) continue;
+
+            const dist = Math.hypot(target.x - this.x, target.y - this.y);
+            if (dist <= this.splashRadius) {
+                target.takeDamage(this.splashDamage);
+            }
+        }
     }
 
     draw(ctx) {

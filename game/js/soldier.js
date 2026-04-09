@@ -75,7 +75,7 @@ class Soldier {
             this.healingInBunker = false;
             const attackTarget = this.findTarget(enemies, this.visionRange);
             if (attackTarget) {
-                const attackPoint = this.getAttackPoint(attackTarget);
+                const attackPoint = this.getAttackPoint(attackTarget, fieldWidth, fieldHeight);
                 this.moveToward(attackPoint.x, attackPoint.y, this.range - 12);
             } else {
                 this.x += this.moveSpeed;
@@ -137,8 +137,8 @@ class Soldier {
         shotSound.play().catch(() => {});
     }
 
-    getAttackPoint(target) {
-        const bounds = this.getBattleBounds(window.innerWidth, window.innerHeight);
+    getAttackPoint(target, fieldWidth = window.innerWidth, fieldHeight = window.innerHeight) {
+        const bounds = this.getBattleBounds(fieldWidth, fieldHeight);
         return {
             x: target.x + Math.cos(this.formationAngle) * this.formationDistance,
             y: this.clampY(target.y + Math.sin(this.formationAngle) * this.formationDistance, bounds)
