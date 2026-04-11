@@ -1,7 +1,8 @@
 class TankWreck {
-    constructor(x, y) {
+    constructor(x, y, options = {}) {
         this.x = x;
         this.y = y;
+        this.sourceTower = options.sourceTower || null;
         this.radius = 16;
         this.markedForDeletion = false;
         this.assignedBulldozer = null;

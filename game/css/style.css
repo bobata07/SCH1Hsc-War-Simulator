@@ -130,6 +130,10 @@ canvas {
     z-index: 3;
 }
 
+#controls.deck-hidden {
+    display: none !important;
+}
+
 .card-strip,
 .action-strip {
     display: flex;
@@ -421,6 +425,198 @@ p {
     padding: 36px 18px;
     overflow-y: auto;
     align-items: stretch;
+}
+
+#country-map-screen {
+    padding: 28px 18px;
+    overflow-y: auto;
+    align-items: stretch;
+    background:
+        radial-gradient(circle at top, rgba(86, 126, 85, 0.28), transparent 40%),
+        linear-gradient(180deg, rgba(7, 14, 18, 0.95), rgba(6, 10, 14, 0.97));
+}
+
+.country-map-shell {
+    width: min(1180px, 100%);
+    margin: auto;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    background: rgba(12, 20, 26, 0.9);
+}
+
+.country-map-header p {
+    margin-bottom: 18px;
+}
+
+.country-map-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+    gap: 18px;
+}
+
+.country-map-panel {
+    min-width: 0;
+}
+
+.country-map-board {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1.4 / 1;
+    border: 2px solid rgba(231, 242, 218, 0.24);
+    border-radius: 8px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 26% 28%, rgba(255, 255, 255, 0.08), transparent 12%),
+        radial-gradient(circle at 65% 44%, rgba(255, 255, 255, 0.06), transparent 10%),
+        linear-gradient(180deg, #1f5f7b 0%, #164760 52%, #0f3344 100%);
+}
+
+.country-map-board::before {
+    content: "";
+    position: absolute;
+    inset: 8% 9%;
+    clip-path: polygon(14% 12%, 30% 4%, 52% 7%, 70% 18%, 86% 16%, 94% 34%, 90% 57%, 78% 77%, 56% 90%, 34% 88%, 16% 75%, 7% 55%, 9% 31%);
+    background: linear-gradient(145deg, #5f8243 0%, #6e9254 46%, #7a8f4d 100%);
+    box-shadow: inset 0 0 0 2px rgba(235, 249, 215, 0.16);
+}
+
+.country-map-board::after {
+    content: "";
+    position: absolute;
+    inset: 12% 14%;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 12% 12%;
+    opacity: 0.4;
+    clip-path: polygon(12% 13%, 28% 5%, 49% 8%, 67% 20%, 83% 18%, 90% 34%, 86% 56%, 75% 75%, 55% 87%, 35% 85%, 18% 74%, 10% 55%, 10% 32%);
+    pointer-events: none;
+}
+
+.country-map-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.country-map-stats,
+.country-map-tools {
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(21, 29, 35, 0.92);
+}
+
+.country-map-stats {
+    display: grid;
+    gap: 8px;
+    font-size: 0.96rem;
+}
+
+.country-map-tools {
+    display: grid;
+    gap: 10px;
+}
+
+.country-map-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.country-diplomacy-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.country-structure {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    margin-left: -26px;
+    margin-top: -26px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #f3f5da;
+    text-align: center;
+    line-height: 1.1;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+}
+
+.country-neighbor {
+    position: absolute;
+    width: 88px;
+    min-height: 48px;
+    margin-left: -44px;
+    margin-top: -24px;
+    padding: 8px 10px;
+    border: 2px solid rgba(255, 255, 255, 0.24);
+    border-radius: 8px;
+    background: rgba(20, 28, 35, 0.9);
+    color: #eef4d7;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+    pointer-events: auto;
+}
+
+.country-neighbor small {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    opacity: 0.86;
+}
+
+.country-neighbor.neutral {
+    border-color: rgba(229, 238, 210, 0.32);
+}
+
+.country-neighbor.allied {
+    background: rgba(33, 82, 53, 0.94);
+    border-color: #bde69d;
+}
+
+.country-neighbor.hostile {
+    background: rgba(108, 42, 39, 0.94);
+    border-color: #f0a286;
+}
+
+.country-neighbor.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.34);
+}
+
+.country-structure.oil-infrastructure {
+    background: linear-gradient(145deg, #424850, #2d3138);
+}
+
+.country-structure.iron-mine {
+    background: linear-gradient(145deg, #5d6b6f, #434e52);
+}
+
+.country-structure.farm {
+    background: linear-gradient(145deg, #758944, #556834);
+}
+
+.country-structure.tank-factory {
+    background: linear-gradient(145deg, #696d73, #44484d);
+}
+
+.country-structure.tank-storage {
+    background: linear-gradient(145deg, #6d5d73, #493f50);
 }
 
 .lobby-shell {
@@ -735,6 +931,20 @@ p {
     .lobby-shell {
         padding: 14px;
         border-radius: 18px;
+    }
+
+    .country-map-shell {
+        padding: 14px;
+    }
+
+    .country-map-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .country-map-stats,
+    .country-map-tools {
+        padding: 12px;
     }
 
     .deck-lobby-grid {

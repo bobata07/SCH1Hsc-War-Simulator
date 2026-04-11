@@ -1,7 +1,8 @@
 class Tank {
-    constructor(x, y) {
+    constructor(x, y, options = {}) {
         this.x = x;
         this.y = y;
+        this.sourceTower = options.sourceTower || null;
         this.maxHealth = 260;
         this.health = this.maxHealth;
         this.range = 180;

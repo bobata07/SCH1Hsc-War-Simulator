@@ -5,13 +5,87 @@ class Game {
         if (!window.__warSimulatorAudioPatched) {
             window.__warSimulatorAudioPatched = true;
             window.WAR_SIMULATOR_MUTED = false;
-            const nativePlay = HTMLMediaElement.prototype.play;
-            HTMLMediaElement.prototype.play = function (...args) {
-                if (window.WAR_SIMULATOR_MUTED) {
-                    return Promise.resolve();
+
+            const NativeAudio = window.Audio;
+
+            window.WAR_SIMULATOR_AUDIO = {
+                pools: new Map(),
+                poolCursor: new Map(),
+                maxPoolSize: 6,
+
+                getPool(src) {
+                    if (!this.pools.has(src)) {
+                        this.pools.set(src, []);
+                    }
+                    return this.pools.get(src);
+                },
+
+                getNextAudio(src) {
+                    const pool = this.getPool(src);
+                    const idleAudio = pool.find(audio => audio.paused || audio.ended);
+                    if (idleAudio) {
+                        return idleAudio;
+                    }
+
+                    if (pool.length < this.maxPoolSize) {
+                        const audio = new NativeAudio(src);
+                        audio.preload = 'auto';
+                        pool.push(audio);
+                        return audio;
+                    }
+
+                    const cursor = this.poolCursor.get(src) || 0;
+                    const audio = pool[cursor % pool.length];
+                    this.poolCursor.set(src, (cursor + 1) % pool.length);
+                    audio.pause();
+                    return audio;
+                },
+
+                play(src, options = {}) {
+                    if (window.WAR_SIMULATOR_MUTED || !src) {
+                        return Promise.resolve();
+                    }
+
+                    const audio = this.getNextAudio(src);
+                    audio.currentTime = options.currentTime || 0;
+                    audio.volume = options.volume ?? 1;
+                    audio.playbackRate = options.playbackRate ?? 1;
+                    return audio.play().catch(() => {});
                 }
-                return nativePlay.apply(this, args);
             };
+
+            class PooledSound {
+                constructor(src = '') {
+                    this.src = src;
+                    this.currentTime = 0;
+                    this.volume = 1;
+                    this.playbackRate = 1;
+                }
+
+                cloneNode() {
+                    const clone = new PooledSound(this.src);
+                    clone.currentTime = this.currentTime;
+                    clone.volume = this.volume;
+                    clone.playbackRate = this.playbackRate;
+                    return clone;
+                }
+
+                play() {
+                    return window.WAR_SIMULATOR_AUDIO.play(this.src, {
+                        currentTime: this.currentTime,
+                        volume: this.volume,
+                        playbackRate: this.playbackRate
+                    });
+                }
+
+                pause() {}
+                load() {}
+            };
+
+            window.Audio = function (src = '') {
+                return new PooledSound(src);
+            };
+            window.Audio.prototype = PooledSound.prototype;
         }
 
         this.canvas = document.getElementById('gameCanvas');
@@ -43,6 +117,7 @@ class Game {
         this.baseLives = 20;
         this.score = 0;
         this.gold = this.baseStartingGold;
+        this.countryResources = { oil: 40, iron: 40, food: 50, storedTanks: 0, tankFactoryProgress: 0, lastSync: Date.now() };
         this.lives = this.baseLives;
         this.campaignLevel = 1;
         this.maxCampaignLevels = 15;
@@ -55,19 +130,40 @@ class Game {
         this.settingsOpen = false;
         this.settingsOpenedWhilePlaying = false;
         this.mobileControlsOpen = false;
+        this.deckMenuHidden = false;
         this.isEditingMap = false;
         this.customMapStorageKey = 'war-simulator-custom-map';
         this.deckStorageKey = 'war-simulator-player-deck';
         this.countryStorageKey = 'war-simulator-country-side';
+        this.countryMapStorageKey = 'war-simulator-country-map';
+        this.countryEconomyStorageKey = 'war-simulator-country-economy';
+        this.countryDiplomacyStorageKey = 'war-simulator-country-diplomacy';
         this.maxDeckSize = 6;
         this.countrySides = {
             left: { name: 'Left Country', front: 'Western front' },
             right: { name: 'Right Country', front: 'Eastern front' }
         };
+        this.countryNeighborDefinitions = {
+            right: [
+                { id: 'north-federation', name: 'North Federation', x: 0.60, y: 0.17 },
+                { id: 'coastal-union', name: 'Coastal Union', x: 0.83, y: 0.39 },
+                { id: 'southern-league', name: 'Southern League', x: 0.71, y: 0.76 }
+            ],
+            left: [
+                { id: 'ridge-republic', name: 'Ridge Republic', x: 0.27, y: 0.18 },
+                { id: 'western-pact', name: 'Western Pact', x: 0.12, y: 0.46 },
+                { id: 'sun-coast', name: 'Sun Coast', x: 0.31, y: 0.79 }
+            ]
+        };
         this.selectedCountrySide = this.loadCountrySide();
         this.customMapMode = 'land';
         this.editorTool = 'rock';
         this.customMapObjects = this.loadCustomMap();
+        this.countryMapObjects = this.loadCountryMap();
+        this.countryMapTool = 'oil-infrastructure';
+        this.countryResources = this.loadCountryEconomy();
+        this.countryDiplomacy = this.loadCountryDiplomacy();
+        this.selectedNeighborId = null;
         this.cardDefinitions = this.createCardDefinitions();
         this.playerDeck = this.loadDeck();
 
@@ -79,6 +175,10 @@ class Game {
         this.barbedWires = [];
         this.enemyBarbedWires = [];
         this.trenches = [];
+        this.oilInfrastructures = [];
+        this.ironMines = [];
+        this.farms = [];
+        this.tankFactories = [];
         this.repairBases = [];
         this.airports = [];
         this.bunkers = [];
@@ -108,6 +208,7 @@ class Game {
         this.awaitingNukeTarget = false;
         this.maxFriendlySoldiers = 120;
         this.maxEnemySoldiers = 140;
+        this.maxFriendlyTanks = 36;
         this.maxEnemyArtillery = 30;
         this.maxEnemySnipers = 24;
         this.maxEnemyTanks = 28;
@@ -128,6 +229,9 @@ class Game {
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
         this.enemyStrengthMultiplier = 1;
+        this.countryFactoryInterval = 9000;
+        this.countryMapWasPlaying = false;
+        this.countryMapRefreshHandle = null;
 
         // Input Handling
         this.input = new InputHandler();
@@ -232,6 +336,34 @@ class Game {
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
+            } else if (this.selectedUnitType === 'oil-infrastructure') {
+                if (this.gold >= 150) {
+                    this.oilInfrastructures.push(new OilInfrastructure(placeX, placeY));
+                    this.gold -= 150;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                }
+            } else if (this.selectedUnitType === 'iron-mine') {
+                if (this.gold >= 145) {
+                    this.ironMines.push(new IronMine(placeX, placeY));
+                    this.gold -= 145;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                }
+            } else if (this.selectedUnitType === 'farm') {
+                if (this.gold >= 110) {
+                    this.farms.push(new Farm(placeX, placeY));
+                    this.gold -= 110;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                }
+            } else if (this.selectedUnitType === 'tank-factory') {
+                if (this.gold >= 260) {
+                    this.tankFactories.push(new TankFactory(placeX, placeY));
+                    this.gold -= 260;
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                }
             } else if (this.selectedUnitType === 'repair-base') {
                 if (this.gold >= 130) {
                     this.repairBases.push(new RepairBase(placeX, placeY));
@@ -260,12 +392,32 @@ class Game {
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
-            } else if (this.selectedUnitType === 'tank') {
-                if (this.gold >= 150) {
-                    this.tanks.push(new Tank(placeX, placeY));
-                    this.gold -= 150;
+            } else if (this.selectedUnitType === 'elite-soldier') {
+                if (this.gold >= 85 && this.soldiers.length < this.maxFriendlySoldiers) {
+                    this.soldiers.push(new EliteSoldier(placeX, placeY));
+                    this.gold -= 85;
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
+                }
+            } else if (this.selectedUnitType === 'flamethrower-squad') {
+                if (this.gold >= 120 && this.soldiers.length < this.maxFriendlySoldiers) {
+                    const squadSize = 4 + Math.floor(Math.random() * 2);
+                    const spawned = this.spawnInfantrySquad(FlamethrowerSoldier, placeX, placeY, squadSize, 18);
+                    if (spawned > 0) {
+                        this.gold -= 120;
+                        this.updateHUD();
+                        this.buildSound.cloneNode().play().catch(() => {});
+                    }
+                }
+            } else if (this.selectedUnitType === 'tank') {
+                if (this.countryResources.storedTanks > 0) {
+                    this.tanks.push(new Tank(placeX, placeY));
+                    this.countryResources.storedTanks -= 1;
+                    this.saveCountryEconomy();
+                    this.updateHUD();
+                    this.buildSound.cloneNode().play().catch(() => {});
+                } else {
+                    this.showEventBanner('No stored tanks available. Build factories and tank storage on the country map.');
                 }
             } else if (this.selectedUnitType === 'submarine') {
                 if (this.gold >= 140) {
@@ -542,6 +694,7 @@ class Game {
         this.updateBattlefieldMetrics();
         this.applyLevelConfig();
         this.resetBattleState();
+        this.syncCountryEconomy(true);
         this.lastTime = performance.now();
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
@@ -587,6 +740,10 @@ class Game {
         this.barbedWires = [];
         this.enemyBarbedWires = [];
         this.trenches = [];
+        this.oilInfrastructures = [];
+        this.ironMines = [];
+        this.farms = [];
+        this.tankFactories = [];
         this.repairBases = [];
         this.airports = [];
         this.bunkers = [];
@@ -734,6 +891,12 @@ class Game {
         this.trenches.forEach(trench => {
             this.enemies.forEach(enemy => trench.applyEffect(enemy, deltaTime));
         });
+        this.oilInfrastructures.forEach(site => site.update(deltaTime, this));
+        this.ironMines.forEach(site => site.update(deltaTime, this));
+        this.farms.forEach(site => site.update(deltaTime, this));
+        this.tankFactories.forEach(factory => factory.update(deltaTime, this, fieldWidth, fieldHeight));
+        this.updateCountryEconomy(deltaTime);
+        this.updateHUD();
 
         // Update Enemies
         this.enemies.forEach(e => e.update(playerCombatUnits, fieldWidth, fieldHeight));
@@ -804,7 +967,7 @@ class Game {
             }
         }
 
-        if (!this.enemyDefeated && this.enemyResources <= 0 && this.enemies.length === 0 && this.enemyArtilleryUnits.length === 0 && this.enemySnipers.length === 0 && this.enemyTanks.length === 0 && this.enemyPlanes.length === 0) {
+        if (!this.enemyDefeated && this.enemyResources <= 0 && this.getRemainingLandEnemyCount() === 0) {
             this.victory();
             return;
         }
@@ -812,7 +975,15 @@ class Game {
         // Update Towers
         this.towers.forEach(t => t.update(hostileUnits));
         this.spawnTowers.forEach(t => t.update(deltaTime, this.soldiers, this.maxFriendlySoldiers, fieldWidth, fieldHeight));
-        this.tankSpawnTowers.forEach(t => t.update(deltaTime, this.tanks, fieldWidth, fieldHeight));
+        this.tankSpawnTowers.forEach(t => t.update(
+            deltaTime,
+            this.tanks,
+            this.tankWrecks,
+            this.repairBases,
+            this.bulldozers,
+            fieldWidth,
+            fieldHeight
+        ));
 
         // Update Soldiers
         const friendlyMovers = [...this.soldiers, ...this.tanks];
@@ -827,7 +998,9 @@ class Game {
             if (tank.markedForDeletion) {
                 this.tanks.splice(i, 1);
                 if (tank.destroyedAsWreck) {
-                    this.tankWrecks.push(new TankWreck(tank.x, tank.y));
+                    this.tankWrecks.push(new TankWreck(tank.x, tank.y, {
+                        sourceTower: tank.sourceTower
+                    }));
                 }
             }
         }
@@ -942,7 +1115,7 @@ class Game {
             }
         }
 
-        if (!this.enemyDefeated && this.enemyResources <= 0 && this.enemySubmarines.length === 0 && this.enemyAircraftCarriers.length === 0) {
+        if (!this.enemyDefeated && this.enemyResources <= 0 && this.getRemainingOceanEnemyCount() === 0) {
             this.victory();
             return;
         }
@@ -982,6 +1155,10 @@ class Game {
         this.barbedWires.forEach(w => w.draw(this.ctx));
         this.enemyBarbedWires.forEach(w => w.draw(this.ctx));
         this.trenches.forEach(t => t.draw(this.ctx));
+        this.oilInfrastructures.forEach(site => site.draw(this.ctx));
+        this.ironMines.forEach(site => site.draw(this.ctx));
+        this.farms.forEach(site => site.draw(this.ctx));
+        this.tankFactories.forEach(factory => factory.draw(this.ctx));
         this.repairBases.forEach(base => base.draw(this.ctx));
         this.airports.forEach(airport => airport.draw(this.ctx));
         this.bunkers.forEach(bunker => bunker.draw(this.ctx));
@@ -1021,8 +1198,29 @@ class Game {
             ...this.bunkers,
             ...this.towers,
             ...this.spawnTowers,
-            ...this.tankSpawnTowers
+            ...this.tankSpawnTowers,
+            ...this.oilInfrastructures,
+            ...this.ironMines,
+            ...this.farms,
+            ...this.tankFactories
         ].filter(unit => unit && !unit.markedForDeletion);
+    }
+
+    getRemainingLandEnemyCount() {
+        return [
+            ...this.enemies,
+            ...this.enemyArtilleryUnits,
+            ...this.enemySnipers,
+            ...this.enemyTanks,
+            ...this.enemyPlanes
+        ].filter(unit => unit && !unit.markedForDeletion).length;
+    }
+
+    getRemainingOceanEnemyCount() {
+        return [
+            ...this.enemySubmarines,
+            ...this.enemyAircraftCarriers
+        ].filter(unit => unit && !unit.markedForDeletion).length;
     }
 
     getHostileTerritoryUnits() {
@@ -1209,6 +1407,27 @@ class Game {
         this.ctx.fillText(`Left Country ${leftPercent}% | Right Country ${rightPercent}% | Zoom ${Math.round(this.viewScale * 100)}%`, x, y + 32);
     }
 
+    spawnInfantrySquad(UnitType, centerX, centerY, count, radius = 22) {
+        const fieldWidth = this.getBattlefieldWidth();
+        const fieldHeight = this.getBattlefieldHeight();
+        const squadCount = Math.max(1, Math.min(count, this.maxFriendlySoldiers - this.soldiers.length));
+
+        for (let i = 0; i < squadCount; i++) {
+            const angle = (Math.PI * 2 * i) / squadCount;
+            const ringRadius = squadCount === 1 ? 0 : radius + ((i % 2) * 8);
+            const point = Soldier.clampPoint(
+                centerX + Math.cos(angle) * ringRadius,
+                centerY + Math.sin(angle) * ringRadius,
+                fieldWidth,
+                fieldHeight,
+                10
+            );
+            this.soldiers.push(new UnitType(point.x, point.y));
+        }
+
+        return squadCount;
+    }
+
     createCardDefinitions() {
         return [
             { type: 'tower', title: 'Tower', cost: 50, mapModes: ['land'], summary: 'Cheap frontline turret.' },
@@ -1220,7 +1439,9 @@ class Game {
             { type: 'airport', title: 'Airport', cost: 180, mapModes: ['land'], summary: 'Required before planes can launch.' },
             { type: 'bunker', title: 'Bunker', cost: 170, mapModes: ['land'], summary: 'Durable defense node.' },
             { type: 'soldier', title: 'Soldier', cost: 30, mapModes: ['land'], summary: 'Low-cost infantry.' },
-            { type: 'tank', title: 'Tank', cost: 150, mapModes: ['land'], summary: 'Heavy direct fire unit.' },
+            { type: 'elite-soldier', title: 'Elite Unit', cost: 85, mapModes: ['land'], summary: 'Fearless assault infantry.' },
+            { type: 'flamethrower-squad', title: 'Flamethrower Squad', cost: 120, mapModes: ['land'], summary: 'Deploys 4-5 flame troops.' },
+            { type: 'tank', title: 'Tank', cost: 0, mapModes: ['land'], summary: 'Deploy one stored tank.' },
             { type: 'plane', title: 'Plane', cost: 160, mapModes: ['land'], summary: 'Right-click an airport to launch one.' },
             { type: 'bulldozer', title: 'Bulldozer', cost: 95, mapModes: ['land'], summary: 'Utility vehicle for the front line.' },
             { type: 'sniper', title: 'Sniper', cost: 80, mapModes: ['land'], summary: 'Long-range precision unit.' },
@@ -1305,9 +1526,9 @@ class Game {
     loadCountrySide() {
         try {
             const savedSide = localStorage.getItem(this.countryStorageKey);
-            return savedSide === 'right' ? 'right' : 'left';
+            return savedSide === 'left' || savedSide === 'right' ? savedSide : 'right';
         } catch {
-            return 'left';
+            return 'right';
         }
     }
 
@@ -1321,8 +1542,10 @@ class Game {
 
     setCountrySide(side) {
         this.selectedCountrySide = side === 'right' ? 'right' : 'left';
+        this.selectedNeighborId = null;
         this.saveCountrySide();
         this.renderCountrySelection();
+        this.renderCountryMap();
     }
 
     renderCountrySelection() {
@@ -1522,6 +1745,10 @@ class Game {
         document.getElementById('level-display').innerText = `${this.campaignLevel}/${this.maxCampaignLevels}`;
         document.getElementById('health-display').innerText = this.lives;
         document.getElementById('gold-display').innerText = this.gold;
+        document.getElementById('oil-display').innerText = Math.floor(this.countryResources.oil);
+        document.getElementById('iron-display').innerText = Math.floor(this.countryResources.iron);
+        document.getElementById('food-display').innerText = Math.floor(this.countryResources.food);
+        document.getElementById('tank-storage-display').innerText = `${Math.floor(this.countryResources.storedTanks || 0)}/${this.getTankStorageCapacity()}`;
         document.getElementById('wave-display').innerText = this.wave;
         document.getElementById('score-display').innerText = this.score;
         document.getElementById('enemy-resources-display').innerText = `${Math.round(this.enemyResources * 100)}%`;
@@ -1548,11 +1775,381 @@ class Game {
         }
     }
 
+    loadCountryMap() {
+        try {
+            const raw = localStorage.getItem(this.countryMapStorageKey);
+            if (!raw) return [];
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+
+            const validTypes = new Set(['oil-infrastructure', 'iron-mine', 'farm', 'tank-factory', 'tank-storage']);
+            return parsed
+                .filter(obj => obj && validTypes.has(obj.type))
+                .map(obj => ({
+                    type: obj.type,
+                    x: Math.max(0.08, Math.min(0.92, Number(obj.x))),
+                    y: Math.max(0.12, Math.min(0.88, Number(obj.y)))
+                }))
+                .filter(obj => Number.isFinite(obj.x) && Number.isFinite(obj.y));
+        } catch {
+            return [];
+        }
+    }
+
+    loadCountryEconomy() {
+        try {
+            const raw = localStorage.getItem(this.countryEconomyStorageKey);
+            if (!raw) {
+                return {
+                    oil: 40,
+                    iron: 40,
+                    food: 50,
+                    storedTanks: 0,
+                    tankFactoryProgress: 0,
+                    lastSync: Date.now()
+                };
+            }
+
+            const parsed = JSON.parse(raw);
+            return {
+                oil: Number.isFinite(parsed?.oil) ? parsed.oil : 40,
+                iron: Number.isFinite(parsed?.iron) ? parsed.iron : 40,
+                food: Number.isFinite(parsed?.food) ? parsed.food : 50,
+                storedTanks: Number.isFinite(parsed?.storedTanks) ? Math.max(0, Math.floor(parsed.storedTanks)) : 0,
+                tankFactoryProgress: Number.isFinite(parsed?.tankFactoryProgress) ? Math.max(0, parsed.tankFactoryProgress) : 0,
+                lastSync: Number.isFinite(parsed?.lastSync) ? parsed.lastSync : Date.now()
+            };
+        } catch {
+            return {
+                oil: 40,
+                iron: 40,
+                food: 50,
+                storedTanks: 0,
+                tankFactoryProgress: 0,
+                lastSync: Date.now()
+            };
+        }
+    }
+
     saveCustomMap() {
         localStorage.setItem(this.customMapStorageKey, JSON.stringify({
             mode: this.customMapMode,
             objects: this.customMapObjects
         }));
+    }
+
+    saveCountryMap() {
+        localStorage.setItem(this.countryMapStorageKey, JSON.stringify(this.countryMapObjects));
+    }
+
+    saveCountryEconomy() {
+        localStorage.setItem(this.countryEconomyStorageKey, JSON.stringify(this.countryResources));
+    }
+
+    loadCountryDiplomacy() {
+        try {
+            const raw = localStorage.getItem(this.countryDiplomacyStorageKey);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    saveCountryDiplomacy() {
+        localStorage.setItem(this.countryDiplomacyStorageKey, JSON.stringify(this.countryDiplomacy));
+    }
+
+    getCountryNeighbors() {
+        return this.countryNeighborDefinitions[this.selectedCountrySide] || [];
+    }
+
+    getDiplomacyKey(neighborId) {
+        return `${this.selectedCountrySide}:${neighborId}`;
+    }
+
+    getNeighborStatus(neighborId) {
+        return this.countryDiplomacy[this.getDiplomacyKey(neighborId)] || 'neutral';
+    }
+
+    getSelectedNeighbor() {
+        return this.getCountryNeighbors().find(neighbor => neighbor.id === this.selectedNeighborId) || null;
+    }
+
+    selectNeighbor(neighborId) {
+        this.selectedNeighborId = neighborId;
+        this.renderCountryMap();
+    }
+
+    setNeighborStatus(status) {
+        const neighbor = this.getSelectedNeighbor();
+        if (!neighbor) return;
+
+        this.countryDiplomacy[this.getDiplomacyKey(neighbor.id)] = status;
+        this.saveCountryDiplomacy();
+        this.showEventBanner(
+            status === 'allied'
+                ? `${neighbor.name} has joined your alliance.`
+                : `${neighbor.name} is now under attack.`
+        );
+        this.renderCountryMap();
+    }
+
+    getCountryMapCounts() {
+        const counts = {
+            'oil-infrastructure': 0,
+            'iron-mine': 0,
+            farm: 0,
+            'tank-factory': 0,
+            'tank-storage': 0
+        };
+
+        this.countryMapObjects.forEach(obj => {
+            if (counts[obj.type] !== undefined) {
+                counts[obj.type]++;
+            }
+        });
+
+        return counts;
+    }
+
+    getCountryMapLabel(type) {
+        const labels = {
+            'oil-infrastructure': 'Oil',
+            'iron-mine': 'Iron',
+            farm: 'Farm',
+            'tank-factory': 'Factory',
+            'tank-storage': 'Depot'
+        };
+
+        return labels[type] || 'Site';
+    }
+
+    setCountryMapTool(type) {
+        const validTypes = new Set(['oil-infrastructure', 'iron-mine', 'farm', 'tank-factory', 'tank-storage', 'erase']);
+        this.countryMapTool = validTypes.has(type) ? type : 'oil-infrastructure';
+        document.querySelectorAll('[data-country-tool]').forEach(button => {
+            button.classList.toggle('selected', button.dataset.countryTool === this.countryMapTool);
+        });
+    }
+
+    renderCountryMap() {
+        this.syncCountryEconomy(true);
+
+        const board = document.getElementById('country-map-board');
+        const stats = document.getElementById('country-map-stats');
+        const title = document.getElementById('country-map-title');
+        const subtitle = document.getElementById('country-map-subtitle');
+        const diplomacyPanel = document.getElementById('country-diplomacy-panel');
+        const diplomacyName = document.getElementById('country-diplomacy-name');
+        const diplomacyStatus = document.getElementById('country-diplomacy-status');
+        if (!board || !stats || !title || !subtitle || !diplomacyPanel || !diplomacyName || !diplomacyStatus) return;
+
+        const country = this.getSelectedCountry();
+        const counts = this.getCountryMapCounts();
+        title.textContent = `${country.name} Command`;
+        subtitle.textContent = `Build ${country.name}'s economy and armored industry.`;
+        stats.innerHTML = `
+            <strong>Strategic Assets</strong>
+            <span>Oil infrastructure: ${counts['oil-infrastructure']}</span>
+            <span>Iron mines: ${counts['iron-mine']}</span>
+            <span>Farms: ${counts.farm}</span>
+            <span>Tank factories: ${counts['tank-factory']}</span>
+            <span>Tank depots: ${counts['tank-storage']}</span>
+            <span>Oil stockpile: ${Math.floor(this.countryResources.oil)}</span>
+            <span>Iron stockpile: ${Math.floor(this.countryResources.iron)}</span>
+            <span>Food stockpile: ${Math.floor(this.countryResources.food)}</span>
+            <span>Stored tanks: ${this.countryResources.storedTanks}/${this.getTankStorageCapacity()}</span>
+        `;
+
+        board.innerHTML = '';
+        this.countryMapObjects.forEach(obj => {
+            const marker = document.createElement('div');
+            marker.className = `country-structure ${obj.type}`;
+            marker.style.left = `${obj.x * 100}%`;
+            marker.style.top = `${obj.y * 100}%`;
+            marker.textContent = this.getCountryMapLabel(obj.type);
+            board.appendChild(marker);
+        });
+
+        this.getCountryNeighbors().forEach(neighbor => {
+            const status = this.getNeighborStatus(neighbor.id);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `country-neighbor ${status}${this.selectedNeighborId === neighbor.id ? ' selected' : ''}`;
+            button.dataset.neighborId = neighbor.id;
+            button.style.left = `${neighbor.x * 100}%`;
+            button.style.top = `${neighbor.y * 100}%`;
+            button.innerHTML = `${neighbor.name}<small>${status === 'allied' ? 'Alliance' : status === 'hostile' ? 'At War' : 'Neutral'}</small>`;
+            board.appendChild(button);
+        });
+
+        const selectedNeighbor = this.getSelectedNeighbor();
+        if (selectedNeighbor) {
+            const status = this.getNeighborStatus(selectedNeighbor.id);
+            diplomacyPanel.classList.remove('hidden');
+            diplomacyName.textContent = selectedNeighbor.name;
+            diplomacyStatus.textContent = `Status: ${status === 'allied' ? 'Alliance' : status === 'hostile' ? 'At War' : 'Neutral'}`;
+        } else {
+            diplomacyPanel.classList.add('hidden');
+        }
+
+        this.setCountryMapTool(this.countryMapTool);
+    }
+
+    findCountryMapObjectIndex(x, y, maxDistance = 0.06) {
+        let closestIndex = -1;
+        let minDistance = maxDistance;
+
+        for (let i = 0; i < this.countryMapObjects.length; i++) {
+            const obj = this.countryMapObjects[i];
+            const dist = Math.hypot(obj.x - x, obj.y - y);
+            if (dist <= minDistance) {
+                minDistance = dist;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }
+
+    applyCountryMapInput(x, y) {
+        this.syncCountryEconomy(true);
+
+        const neighbor = this.getCountryNeighbors().find(entry => Math.hypot(entry.x - x, entry.y - y) <= 0.085);
+        if (neighbor) {
+            this.selectNeighbor(neighbor.id);
+            return;
+        }
+
+        if (this.countryMapTool === 'erase') {
+            const eraseIndex = this.findCountryMapObjectIndex(x, y, 0.08);
+            if (eraseIndex >= 0) {
+                this.countryMapObjects.splice(eraseIndex, 1);
+                this.saveCountryMap();
+                this.countryResources.lastSync = Date.now();
+                this.saveCountryEconomy();
+                this.renderCountryMap();
+            }
+            return;
+        }
+
+        const nextObject = {
+            type: this.countryMapTool,
+            x: Math.max(0.08, Math.min(0.92, x)),
+            y: Math.max(0.12, Math.min(0.88, y))
+        };
+        const existingIndex = this.findCountryMapObjectIndex(nextObject.x, nextObject.y, 0.07);
+
+        if (existingIndex >= 0) {
+            this.countryMapObjects[existingIndex] = nextObject;
+        } else {
+            this.countryMapObjects.push(nextObject);
+        }
+
+        this.saveCountryMap();
+        this.countryResources.lastSync = Date.now();
+        this.saveCountryEconomy();
+        this.renderCountryMap();
+    }
+
+    openCountryMap() {
+        const screen = document.getElementById('country-map-screen');
+        if (!screen) return;
+
+        this.countryMapWasPlaying = this.isPlaying && !this.isPaused;
+        if (this.countryMapWasPlaying) {
+            this.isPaused = true;
+            document.getElementById('pause-screen').classList.add('hidden');
+            document.getElementById('settings-screen').classList.add('hidden');
+        }
+
+        this.renderCountryMap();
+        screen.classList.remove('hidden');
+        this.startCountryMapRefresh();
+    }
+
+    closeCountryMap() {
+        const screen = document.getElementById('country-map-screen');
+        if (screen) {
+            screen.classList.add('hidden');
+        }
+
+        this.stopCountryMapRefresh();
+
+        if (this.countryMapWasPlaying) {
+            this.isPaused = false;
+        }
+
+        this.countryMapWasPlaying = false;
+    }
+
+    startCountryMapRefresh() {
+        this.stopCountryMapRefresh();
+        this.countryMapRefreshHandle = window.setInterval(() => {
+            this.renderCountryMap();
+            this.updateHUD();
+        }, 500);
+    }
+
+    stopCountryMapRefresh() {
+        if (this.countryMapRefreshHandle !== null) {
+            window.clearInterval(this.countryMapRefreshHandle);
+            this.countryMapRefreshHandle = null;
+        }
+    }
+
+    getTankStorageCapacity() {
+        const counts = this.getCountryMapCounts();
+        return counts['tank-storage'] * 8;
+    }
+
+    syncCountryEconomy(force = false) {
+        const now = Date.now();
+        const lastSync = Number.isFinite(this.countryResources.lastSync) ? this.countryResources.lastSync : now;
+        const elapsedMs = Math.max(0, now - lastSync);
+        if (!force && elapsedMs < 250) return;
+        const counts = this.getCountryMapCounts();
+
+        if (elapsedMs > 0) {
+            const elapsedSeconds = elapsedMs / 1000;
+            this.countryResources.oil += counts['oil-infrastructure'] * 2.4 * elapsedSeconds;
+            this.countryResources.iron += counts['iron-mine'] * 2 * elapsedSeconds;
+            this.countryResources.food += counts.farm * 2.8 * elapsedSeconds;
+
+            const storageCapacity = this.getTankStorageCapacity();
+            this.countryResources.storedTanks = Math.min(storageCapacity, Math.max(0, Math.floor(this.countryResources.storedTanks || 0)));
+            this.countryResources.tankFactoryProgress = Math.max(0, this.countryResources.tankFactoryProgress || 0);
+
+            if (storageCapacity <= 0) {
+                this.countryResources.storedTanks = 0;
+                this.countryResources.tankFactoryProgress = 0;
+            } else {
+                this.countryResources.tankFactoryProgress += elapsedMs * counts['tank-factory'];
+
+                while (
+                    this.countryResources.tankFactoryProgress >= this.countryFactoryInterval &&
+                    this.countryResources.storedTanks < storageCapacity &&
+                    this.countryResources.oil >= 18 &&
+                    this.countryResources.iron >= 24 &&
+                    this.countryResources.food >= 10
+                ) {
+                    this.countryResources.oil -= 18;
+                    this.countryResources.iron -= 24;
+                    this.countryResources.food -= 10;
+                    this.countryResources.storedTanks += 1;
+                    this.countryResources.tankFactoryProgress -= this.countryFactoryInterval;
+                }
+            }
+        }
+
+        this.countryResources.lastSync = now;
+        this.saveCountryEconomy();
+    }
+
+    updateCountryEconomy() {
+        this.syncCountryEconomy();
     }
 
     openCustomMapEditor() {
@@ -1905,22 +2502,47 @@ class Game {
     updateMobileControlsUI() {
         const controls = document.getElementById('controls');
         const mobileToggle = document.getElementById('mobile-controls-toggle');
+        const deckToggleBtn = document.getElementById('toggle-deck-btn');
 
         if (!this.isPlaying || !this.isMobileLayout()) {
             controls.classList.remove('mobile-collapsed');
+            controls.classList.toggle('deck-hidden', this.isPlaying && this.deckMenuHidden);
             mobileToggle.classList.add('hidden');
+            if (deckToggleBtn) {
+                deckToggleBtn.classList.toggle('hidden', !this.isPlaying);
+                deckToggleBtn.textContent = this.deckMenuHidden ? 'Show Deck' : 'Hide Deck';
+            }
             return;
         }
 
+        const controlsVisible = !this.deckMenuHidden && this.mobileControlsOpen;
+        controls.classList.toggle('deck-hidden', this.deckMenuHidden);
         mobileToggle.classList.remove('hidden');
-        controls.classList.toggle('mobile-collapsed', !this.mobileControlsOpen);
-        mobileToggle.textContent = this.mobileControlsOpen ? 'Hide Cards' : 'Cards';
+        controls.classList.toggle('mobile-collapsed', !controlsVisible);
+        mobileToggle.textContent = controlsVisible ? 'Hide Cards' : 'Cards';
+
+        if (deckToggleBtn) {
+            deckToggleBtn.classList.remove('hidden');
+            deckToggleBtn.textContent = this.deckMenuHidden ? 'Show Deck' : 'Hide Deck';
+        }
+    }
+
+    toggleDeckMenu(forceHidden = null) {
+        if (!this.isPlaying) return;
+
+        this.deckMenuHidden = forceHidden === null ? !this.deckMenuHidden : forceHidden;
+        if (this.isMobileLayout()) {
+            this.mobileControlsOpen = !this.deckMenuHidden;
+        }
+
+        this.updateMobileControlsUI();
     }
 
     toggleMobileControls(forceOpen = null) {
         if (!this.isMobileLayout() || !this.isPlaying) return;
 
         this.mobileControlsOpen = forceOpen === null ? !this.mobileControlsOpen : forceOpen;
+        this.deckMenuHidden = !this.mobileControlsOpen;
         this.updateMobileControlsUI();
     }
 
@@ -2068,6 +2690,10 @@ class Game {
             { list: this.soldiers, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.barbedWires, hit: obj => this.isCircleHit(x, y, obj.x, obj.y, obj.radius) },
             { list: this.trenches, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
+            { list: this.tankFactories, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
+            { list: this.farms, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
+            { list: this.ironMines, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
+            { list: this.oilInfrastructures, hit: obj => this.isRectHit(x, y, obj.x, obj.y, obj.width, obj.height) },
             { list: this.repairBases, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
             { list: this.bunkers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 48, 36) },
             { list: this.tankSpawnTowers, hit: obj => this.isRectHit(x, y, obj.x, obj.y, 40, 40) },
@@ -2094,6 +2720,10 @@ class Game {
             'tank-spawn-tower': 22,
             'barbed-wire': 28,
             trench: 18,
+            'oil-infrastructure': 24,
+            'iron-mine': 24,
+            farm: 24,
+            'tank-factory': 28,
             'repair-base': 24,
             airport: 24,
             bunker: 24,
@@ -2186,6 +2816,7 @@ window.addEventListener('load', () => {
     const startScreen = document.getElementById('start-screen');
     const countrySelectScreen = document.getElementById('country-select-screen');
     const deckLobbyScreen = document.getElementById('deck-lobby-screen');
+    const countryMapScreen = document.getElementById('country-map-screen');
     const customMapScreen = document.getElementById('custom-map-screen');
     const controls = document.getElementById('controls');
     const deckControls = document.getElementById('deck-controls');
@@ -2194,6 +2825,7 @@ window.addEventListener('load', () => {
     const lobbyStartBtn = document.getElementById('lobby-start-btn');
     const lobbyBackBtn = document.getElementById('lobby-back-btn');
     const startBtn = document.getElementById('start-btn');
+    const startCountryMapBtn = document.getElementById('start-country-map-btn');
     const countryBackBtn = document.getElementById('country-back-btn');
     const countryButtons = document.querySelectorAll('[data-country-side]');
     const customMapBtn = document.getElementById('custom-map-btn');
@@ -2204,6 +2836,8 @@ window.addEventListener('load', () => {
     const victoryMenuBtn = document.getElementById('victory-menu-btn');
     const pauseBtn = document.getElementById('pause-btn');
     const settingsBtn = document.getElementById('settings-btn');
+    const countryMapBtn = document.getElementById('country-map-btn');
+    const toggleDeckBtn = document.getElementById('toggle-deck-btn');
     const pauseMenuBtn = document.getElementById('pause-menu-btn');
     const pauseSettingsBtn = document.getElementById('pause-settings-btn');
     const startSettingsBtn = document.getElementById('start-settings-btn');
@@ -2221,6 +2855,11 @@ window.addEventListener('load', () => {
     const editorSaveBtn = document.getElementById('editor-save-btn');
     const editorPlayBtn = document.getElementById('editor-play-btn');
     const editorBackBtn = document.getElementById('editor-back-btn');
+    const countryMapBoard = document.getElementById('country-map-board');
+    const countryMapCloseBtn = document.getElementById('country-map-close-btn');
+    const countryMapToolButtons = document.querySelectorAll('[data-country-tool]');
+    const countryAllyBtn = document.getElementById('country-ally-btn');
+    const countryAttackBtn = document.getElementById('country-attack-btn');
     let lobbyReturnScreen = 'start';
     let pausedForPortraitMode = false;
 
@@ -2264,6 +2903,7 @@ window.addEventListener('load', () => {
         startScreen.classList.add('hidden');
         countrySelectScreen.classList.add('hidden');
         deckLobbyScreen.classList.add('hidden');
+        countryMapScreen.classList.add('hidden');
         customMapScreen.classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
         document.getElementById('victory-screen').classList.add('hidden');
@@ -2312,6 +2952,7 @@ window.addEventListener('load', () => {
         document.getElementById('hud').classList.remove('hidden');
         document.getElementById('hud-actions').classList.remove('hidden');
         controls.classList.remove('hidden');
+        game.deckMenuHidden = false;
         game.mobileControlsOpen = !game.isMobileLayout();
         game.updateAvailableUnitsUI();
         game.updateMobileControlsUI();
@@ -2322,6 +2963,11 @@ window.addEventListener('load', () => {
     startBtn.addEventListener('click', async () => {
         await tryLockLandscape();
         openCountrySelect();
+    });
+
+    startCountryMapBtn.addEventListener('click', () => {
+        hideFrontScreens();
+        game.openCountryMap();
     });
 
     countryButtons.forEach(button => {
@@ -2376,6 +3022,14 @@ window.addEventListener('load', () => {
         game.openSettings();
     });
 
+    countryMapBtn.addEventListener('click', () => {
+        game.openCountryMap();
+    });
+
+    toggleDeckBtn.addEventListener('click', () => {
+        game.toggleDeckMenu();
+    });
+
     pauseMenuBtn.addEventListener('click', () => {
         location.reload();
     });
@@ -2419,6 +3073,35 @@ window.addEventListener('load', () => {
         game.closeCustomMapEditor();
         customMapScreen.classList.add('hidden');
         startScreen.classList.remove('hidden');
+    });
+
+    countryMapCloseBtn.addEventListener('click', () => {
+        game.closeCountryMap();
+
+        if (!game.isPlaying) {
+            startScreen.classList.remove('hidden');
+        }
+    });
+
+    countryAllyBtn.addEventListener('click', () => {
+        game.setNeighborStatus('allied');
+    });
+
+    countryAttackBtn.addEventListener('click', () => {
+        game.setNeighborStatus('hostile');
+    });
+
+    countryMapToolButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            game.setCountryMapTool(button.dataset.countryTool);
+        });
+    });
+
+    countryMapBoard.addEventListener('click', (event) => {
+        const rect = countryMapBoard.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        game.applyCountryMapInput(x, y);
     });
 
     lobbyStartBtn.addEventListener('click', async () => {
@@ -2490,6 +3173,7 @@ window.addEventListener('load', () => {
 
         if (!game.isMobileLayout()) {
             game.mobileControlsOpen = true;
+            game.deckMenuHidden = false;
         }
 
         game.updateMobileControlsUI();
@@ -2497,6 +3181,8 @@ window.addEventListener('load', () => {
 
     game.renderDeckLobby();
     game.renderCountrySelection();
+    game.renderCountryMap();
+    game.setCountryMapTool(game.countryMapTool);
     game.updateAvailableUnitsUI();
     updateOrientationGate();
 });

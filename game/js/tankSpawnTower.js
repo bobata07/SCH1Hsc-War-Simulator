@@ -6,10 +6,17 @@ class TankSpawnTower {
         this.spawnRate = 1000;
         this.color = '#7a6740';
         this.spawnIndex = 0;
+        this.maxTanks = 30;
+        this.trackedTankCount = 0;
     }
 
-    update(deltaTime, tanks, fieldWidth, fieldHeight) {
+    update(deltaTime, tanks, tankWrecks, repairBases, bulldozers, fieldWidth, fieldHeight) {
         this.spawnCooldown += deltaTime;
+
+        this.trackedTankCount = this.getTrackedTankCount(tanks, tankWrecks, repairBases, bulldozers);
+        if (this.trackedTankCount >= this.maxTanks) {
+            return;
+        }
 
         if (this.spawnCooldown >= this.spawnRate) {
             const bounds = Soldier.getBattleBounds(fieldWidth, fieldHeight, 16);
@@ -23,10 +30,21 @@ class TankSpawnTower {
             ];
             const spawnOffsetY = laneOffsets[this.spawnIndex % laneOffsets.length];
             const point = Soldier.clampPoint(this.x + 32, this.y + spawnOffsetY, fieldWidth, fieldHeight, 16);
-            tanks.push(new Tank(point.x, point.y));
+            tanks.push(new Tank(point.x, point.y, { sourceTower: this }));
             this.spawnIndex++;
             this.spawnCooldown = 0;
+            this.trackedTankCount++;
         }
+    }
+
+    getTrackedTankCount(tanks, tankWrecks, repairBases, bulldozers) {
+        const activeTanks = tanks.filter(tank => tank.sourceTower === this && !tank.markedForDeletion).length;
+        const hasRepairSupport = repairBases.length > 0 && bulldozers.some(bulldozer => !bulldozer.markedForDeletion);
+        const repairableWrecks = hasRepairSupport
+            ? tankWrecks.filter(wreck => wreck.sourceTower === this && !wreck.markedForDeletion).length
+            : 0;
+
+        return activeTanks + repairableWrecks;
     }
 
     draw(ctx) {
@@ -63,5 +81,10 @@ class TankSpawnTower {
         ctx.moveTo(this.x - 12, this.y + 10);
         ctx.lineTo(this.x + 12, this.y + 10);
         ctx.stroke();
+
+        ctx.fillStyle = '#f1e6bd';
+        ctx.font = '10px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${this.trackedTankCount}/${this.maxTanks}`, this.x, this.y + 34);
     }
 }

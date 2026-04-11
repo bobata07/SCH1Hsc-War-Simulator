@@ -31,7 +31,8 @@ class EnemyPatrolState extends State {
             return;
         }
 
-        if (entity.currentTarget && entity.distanceTo(entity.currentTarget) <= entity.visionRange) {
+        const detectionRange = entity.getVisionRange(entity.currentTarget);
+        if (entity.currentTarget && entity.distanceTo(entity.currentTarget) <= detectionRange) {
             entity.stateMachine.changeState(Enemy.states.CHASE);
             return;
         }
@@ -61,17 +62,18 @@ class EnemyChaseState extends State {
         }
 
         const targetDistance = entity.distanceTo(entity.currentTarget);
-        if (targetDistance <= entity.range) {
+        const engagementRange = entity.getEngagementRange(entity.currentTarget);
+        if (targetDistance <= engagementRange) {
             entity.stateMachine.changeState(Enemy.states.ATTACK);
             return;
         }
 
-        if (targetDistance > entity.visionRange * 1.2) {
+        if (targetDistance > entity.getVisionRange(entity.currentTarget) * 1.2) {
             entity.stateMachine.changeState(Enemy.states.PATROL);
             return;
         }
 
-        entity.moveToward(entity.currentTarget.x, entity.currentTarget.y, entity.range - 10);
+        entity.moveToward(entity.currentTarget.x, entity.currentTarget.y, engagementRange - 10);
     }
 }
 
@@ -96,7 +98,8 @@ class EnemyAttackState extends State {
         }
 
         const targetDistance = entity.distanceTo(entity.currentTarget);
-        if (targetDistance > entity.range + 12) {
+        const engagementRange = entity.getEngagementRange(entity.currentTarget);
+        if (targetDistance > engagementRange + 12) {
             entity.stateMachine.changeState(Enemy.states.CHASE);
             return;
         }
@@ -137,7 +140,7 @@ class EnemyRetreatState extends State {
         }
 
         const targetDistance = entity.currentTarget ? entity.distanceTo(entity.currentTarget) : Infinity;
-        if (entity.retreatTimer <= 0 || targetDistance > entity.visionRange * 1.4) {
+        if (entity.retreatTimer <= 0 || targetDistance > entity.getVisionRange(entity.currentTarget) * 1.4) {
             entity.stateMachine.changeState(Enemy.states.PATROL);
         }
     }
@@ -175,8 +178,14 @@ class Enemy {
         this.moveSpeed = this.baseMoveSpeed;
         this.range = 95;
         this.visionRange = 170;
+        this.antiTankRange = 240;
+        this.antiTankVisionRange = 320;
         this.cooldown = 0;
         this.fireRate = 24;
+        this.antiTankFireRate = 300;
+        this.antiTankDamage = 400;
+        this.antiTankProjectileSpeed = 7.2;
+        this.antiTankProjectileRadius = 6;
         this.maxHealth = 100;
         this.health = this.maxHealth;
         this.radius = 15;
@@ -200,7 +209,7 @@ class Enemy {
 
         this.projectiles.forEach(projectile => projectile.update());
         this.projectiles = this.projectiles.filter(projectile => !projectile.markedForDeletion);
-        this.currentTarget = this.findTarget(playerTargets, this.visionRange);
+        this.currentTarget = this.findPriorityTarget(playerTargets);
 
         if (this.health <= 0 && this.stateMachine.currentState !== Enemy.states.DEAD) {
             this.stateMachine.changeState(Enemy.states.DEAD);
@@ -230,6 +239,46 @@ class Enemy {
         }
 
         return closest;
+    }
+
+    findTankTarget(playerTargets, maxRange) {
+        let closest = null;
+        let minDist = Infinity;
+
+        for (const target of playerTargets) {
+            if (!this.isTankTarget(target)) continue;
+
+            const dist = Math.hypot(target.x - this.x, target.y - this.y);
+            if (dist < maxRange && dist < minDist) {
+                minDist = dist;
+                closest = target;
+            }
+        }
+
+        return closest;
+    }
+
+    findPriorityTarget(playerTargets) {
+        return this.findTankTarget(playerTargets, this.antiTankVisionRange)
+            || this.findTarget(playerTargets, this.visionRange);
+    }
+
+    isTankTarget(target) {
+        if (!target || target.markedForDeletion) return false;
+        if (typeof Tank !== 'undefined' && target instanceof Tank) return true;
+
+        return typeof target.destroyedAsWreck === 'boolean'
+            && typeof target.moveToward === 'function'
+            && typeof target.projectiles !== 'undefined'
+            && target.maxHealth >= 250;
+    }
+
+    getVisionRange(target) {
+        return this.isTankTarget(target) ? this.antiTankVisionRange : this.visionRange;
+    }
+
+    getEngagementRange(target) {
+        return this.isTankTarget(target) ? this.antiTankRange : this.range;
     }
 
     createWalkTarget() {
@@ -317,11 +366,25 @@ class Enemy {
 
     tryShoot(target) {
         if (this.cooldown > 0 || !target) return;
-        this.projectiles.push(new Projectile(this.x, this.y, target));
+        const attackingTank = this.isTankTarget(target);
+        if (attackingTank) {
+            this.projectiles.push(new Projectile(
+                this.x,
+                this.y,
+                target,
+                this.antiTankProjectileSpeed,
+                this.antiTankDamage,
+                '#ff9f1c',
+                this.antiTankProjectileRadius
+            ));
+        } else {
+            this.projectiles.push(new Projectile(this.x, this.y, target));
+        }
+
         const shotSound = this.shootSound.cloneNode();
         shotSound.currentTime = 0;
         shotSound.play().catch(() => {});
-        this.cooldown = this.fireRate;
+        this.cooldown = attackingTank ? this.antiTankFireRate : this.fireRate;
     }
 
     draw(ctx) {
@@ -344,8 +407,18 @@ class Enemy {
         ctx.roundRect(this.x - 10, this.y - 4, 20, 14, 4);
         ctx.fill();
 
-        ctx.fillStyle = '#29211f';
-        ctx.fillRect(this.x + 4, this.y - 1, 14, 3);
+        ctx.fillStyle = '#5b4938';
+        ctx.fillRect(this.x - 13, this.y - 13, 7, 17);
+
+        ctx.save();
+        ctx.translate(this.x + 1, this.y - 6);
+        ctx.rotate(-0.18);
+        ctx.fillStyle = '#2f2823';
+        ctx.fillRect(-1, 3, 20, 5);
+        ctx.fillStyle = '#8c7654';
+        ctx.fillRect(-5, 4, 5, 3);
+        ctx.fillRect(16, 4, 4, 2);
+        ctx.restore();
 
         ctx.fillStyle = '#d7c3b5';
         ctx.beginPath();

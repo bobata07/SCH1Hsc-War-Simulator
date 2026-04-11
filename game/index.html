@@ -22,6 +22,10 @@
             <div class="stat">Level: <span id="level-display">1</span></div>
             <div class="stat">Health: <span id="health-display">100</span></div>
             <div class="stat">Gold: <span id="gold-display">50</span></div>
+            <div class="stat">Oil: <span id="oil-display">0</span></div>
+            <div class="stat">Iron: <span id="iron-display">0</span></div>
+            <div class="stat">Food: <span id="food-display">0</span></div>
+            <div class="stat">Stored Tanks: <span id="tank-storage-display">0/0</span></div>
             <div class="stat">Wave: <span id="wave-display">1</span></div>
             <div class="stat">Score: <span id="score-display">0</span></div>
             <div class="stat">Enemy Resources: <span id="enemy-resources-display">100%</span></div>
@@ -30,6 +34,8 @@
         <div id="hud-actions" class="hidden">
             <button id="pause-btn" class="action-btn hud-btn">Pause</button>
             <button id="settings-btn" class="action-btn hud-btn">Settings</button>
+            <button id="country-map-btn" class="action-btn hud-btn">Country Map</button>
+            <button id="toggle-deck-btn" class="action-btn hud-btn">Hide Deck</button>
         </div>
 
         <div id="event-banner" class="hidden"></div>
@@ -50,6 +56,7 @@
             <h1>War Simulator</h1>
             <p>Defend the base from the smart enemies!</p>
             <button id="start-btn" class="btn">Play Game</button>
+            <button id="start-country-map-btn" class="btn secondary-btn">Country Map</button>
             <button id="custom-map-btn" class="btn secondary-btn">Make a custom map.</button>
             <button id="start-settings-btn" class="btn secondary-btn">Settings</button>
             <div class="controls-hint">
@@ -103,6 +110,42 @@
                 <div class="lobby-actions">
                     <button id="lobby-start-btn" class="btn">Start Battle</button>
                     <button id="lobby-back-btn" class="btn secondary-btn">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="country-map-screen" class="screen hidden">
+            <div class="country-map-shell">
+                <div class="country-map-header">
+                    <h1 id="country-map-title">Right Country Command</h1>
+                    <p id="country-map-subtitle">Place national infrastructure to power the war.</p>
+                </div>
+                <div class="country-map-grid">
+                    <section class="country-map-panel">
+                        <div id="country-map-board" class="country-map-board" aria-label="Country map"></div>
+                    </section>
+                    <section class="country-map-panel country-map-sidebar">
+                        <div id="country-map-stats" class="country-map-stats"></div>
+                        <div id="country-diplomacy-panel" class="country-map-stats hidden">
+                            <strong id="country-diplomacy-name">Neighbor Country</strong>
+                            <span id="country-diplomacy-status">Status: Neutral</span>
+                            <div class="country-diplomacy-actions">
+                                <button id="country-ally-btn" class="action-btn">Alliance</button>
+                                <button id="country-attack-btn" class="action-btn">Attack</button>
+                            </div>
+                        </div>
+                        <div id="country-map-tools" class="country-map-tools">
+                            <button id="country-tool-oil" class="unit-btn selected" data-country-tool="oil-infrastructure">Oil Infrastructure</button>
+                            <button id="country-tool-iron" class="unit-btn" data-country-tool="iron-mine">Iron Mine</button>
+                            <button id="country-tool-farm" class="unit-btn" data-country-tool="farm">Farm</button>
+                            <button id="country-tool-factory" class="unit-btn" data-country-tool="tank-factory">Tank Factory</button>
+                            <button id="country-tool-storage" class="unit-btn" data-country-tool="tank-storage">Tank Storage</button>
+                            <button id="country-tool-erase" class="unit-btn" data-country-tool="erase">Erase</button>
+                        </div>
+                        <div class="country-map-actions">
+                            <button id="country-map-close-btn" class="btn">Return</button>
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>
@@ -189,6 +232,7 @@
     <script src="js/repairBase.js"></script>
     <script src="js/airport.js"></script>
     <script src="js/bunker.js"></script>
+    <script src="js/countryInfrastructure.js"></script>
     <script src="js/soldier.js"></script>
     <script src="js/tank.js"></script>
     <script src="js/tankWreck.js"></script>

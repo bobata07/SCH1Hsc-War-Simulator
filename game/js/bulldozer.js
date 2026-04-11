@@ -22,7 +22,9 @@ class Bulldozer {
 
             if (Math.hypot(this.targetRepairBase.x - this.x, this.targetRepairBase.y - this.y) <= this.targetRepairBase.repairRadius) {
                 this.towedWreck.markedForDeletion = true;
-                const repairedTank = new Tank(this.targetRepairBase.x + 36, this.targetRepairBase.y);
+                const repairedTank = new Tank(this.targetRepairBase.x + 36, this.targetRepairBase.y, {
+                    sourceTower: this.towedWreck.sourceTower
+                });
                 this.towedWreck = null;
                 this.targetRepairBase = null;
                 return repairedTank;
