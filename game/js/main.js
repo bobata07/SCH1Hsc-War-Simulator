@@ -166,6 +166,32 @@ class Game {
                 { id: 'sun-coast', name: 'Sun Coast', x: 0.31, y: 0.79, resource: 'food', warPower: 0.92 }
             ]
         };
+        this.countryRegionDefinitions = {
+            right: {
+                home: {
+                    id: 'home',
+                    name: 'Right Country',
+                    points: [[0.34, 0.34], [0.42, 0.24], [0.64, 0.28], [0.72, 0.50], [0.56, 0.70], [0.38, 0.58]]
+                },
+                neighbors: {
+                    'north-federation': [[0.14, 0.12], [0.30, 0.04], [0.52, 0.07], [0.70, 0.18], [0.64, 0.28], [0.42, 0.24], [0.34, 0.34], [0.09, 0.31]],
+                    'coastal-union': [[0.64, 0.28], [0.86, 0.16], [0.94, 0.34], [0.90, 0.57], [0.78, 0.77], [0.72, 0.50]],
+                    'southern-league': [[0.38, 0.58], [0.56, 0.70], [0.78, 0.77], [0.56, 0.90], [0.34, 0.88], [0.16, 0.75], [0.07, 0.55]]
+                }
+            },
+            left: {
+                home: {
+                    id: 'home',
+                    name: 'Left Country',
+                    points: [[0.22, 0.34], [0.34, 0.22], [0.56, 0.24], [0.64, 0.46], [0.46, 0.68], [0.24, 0.58]]
+                },
+                neighbors: {
+                    'ridge-republic': [[0.14, 0.12], [0.30, 0.04], [0.52, 0.07], [0.70, 0.18], [0.56, 0.24], [0.34, 0.22], [0.22, 0.34], [0.09, 0.31]],
+                    'western-pact': [[0.09, 0.31], [0.22, 0.34], [0.24, 0.58], [0.16, 0.75], [0.07, 0.55]],
+                    'sun-coast': [[0.24, 0.58], [0.46, 0.68], [0.56, 0.90], [0.34, 0.88], [0.16, 0.75]]
+                }
+            }
+        };
         this.selectedCountrySide = this.loadCountrySide();
         this.customMapMode = 'land';
         this.editorTool = 'rock';
@@ -856,7 +882,7 @@ class Game {
             const spawnCount = Math.min(scaledSpawnCount, availableSlots);
 
             for (let i = 0; i < spawnCount; i++) {
-                this.enemies.push(this.configureEnemyUnit(new Enemy(fieldWidth, fieldHeight)));
+                this.enemies.push(this.placeUnitOnWarSide(this.configureEnemyUnit(new Enemy(fieldWidth, fieldHeight)), 'enemy'));
             }
             this.spawnTimer = 0;
         }
@@ -864,37 +890,37 @@ class Game {
         this.enemyArtilleryTimer += deltaTime;
         const artilleryInterval = this.levelConfig.artilleryIntervalBase + ((1 - this.enemyStrengthMultiplier) * 1800);
         if (this.enemyResources > 0 && this.enemyArtilleryTimer >= artilleryInterval && this.enemyArtilleryUnits.length < this.maxEnemyArtillery) {
-            this.enemyArtilleryUnits.push(this.configureEnemyUnit(new EnemyArtillery(fieldWidth, fieldHeight)));
+            this.enemyArtilleryUnits.push(this.placeUnitOnWarSide(this.configureEnemyUnit(new EnemyArtillery(fieldWidth, fieldHeight)), 'enemy'));
             this.enemyArtilleryTimer = 0;
         }
 
         this.enemySniperTimer += deltaTime;
         const sniperInterval = Math.max(2400, (this.levelConfig.sniperIntervalBase - ((this.spawnIntensityLevel - 1) * 260)) + ((1 - this.enemyStrengthMultiplier) * 2200));
         if (this.enemyResources > 0 && this.enemySniperTimer >= sniperInterval && this.enemySnipers.length < this.maxEnemySnipers) {
-            this.enemySnipers.push(this.configureEnemyUnit(new EnemySniper(fieldWidth, fieldHeight)));
+            this.enemySnipers.push(this.placeUnitOnWarSide(this.configureEnemyUnit(new EnemySniper(fieldWidth, fieldHeight)), 'enemy'));
             this.enemySniperTimer = 0;
         }
 
         this.enemyTankTimer += deltaTime;
         const tankInterval = Math.max(1800, this.levelConfig.tankIntervalBase - ((this.spawnIntensityLevel - 1) * 220));
         if (this.enemyResources > 0 && this.enemyTankTimer >= tankInterval && this.enemyTanks.length < this.maxEnemyTanks) {
-            this.enemyTanks.push(this.configureEnemyUnit(new EnemyTank(fieldWidth, fieldHeight)));
+            this.enemyTanks.push(this.placeUnitOnWarSide(this.configureEnemyUnit(new EnemyTank(fieldWidth, fieldHeight)), 'enemy'));
             this.enemyTankTimer = 0;
         }
 
         this.enemyPlaneTimer += deltaTime;
         const planeInterval = Math.max(2500, this.levelConfig.planeIntervalBase - ((this.spawnIntensityLevel - 1) * 200));
         if (this.enemyResources > 0 && this.enemyPlaneTimer >= planeInterval && this.enemyPlanes.length < this.maxEnemyPlanes) {
-            this.enemyPlanes.push(this.configureEnemyUnit(new EnemyPlane(fieldWidth, fieldHeight)));
+            this.enemyPlanes.push(this.placeUnitOnWarSide(this.configureEnemyUnit(new EnemyPlane(fieldWidth, fieldHeight)), 'enemy'));
             this.enemyPlaneTimer = 0;
         }
 
         this.enemyBarbedWireTimer += deltaTime;
         if (this.enemyResources > 0 && this.enemyBarbedWireTimer >= this.levelConfig.barbedWireInterval && this.enemyBarbedWires.length < 18 + this.campaignLevel) {
-            this.enemyBarbedWires.push(new BarbedWire(
+            this.enemyBarbedWires.push(this.placeUnitOnWarSide(new BarbedWire(
                 fieldWidth * 0.58 + Math.random() * (fieldWidth * 0.28),
                 80 + Math.random() * Math.max(120, fieldHeight - 160)
-            ));
+            ), 'enemy'));
             this.enemyBarbedWireTimer = 0;
         }
 
@@ -1389,6 +1415,80 @@ class Game {
 
         const fieldWidth = this.getBattlefieldWidth();
         const fieldHeight = this.getBattlefieldHeight();
+        if (this.isStrategicBattleView()) {
+            const battleState = this.getStrategicBattleState(fieldWidth, fieldHeight);
+            if (!battleState) return;
+
+            const playerColor = 'rgba(52, 138, 91, 0.24)';
+            const enemyColor = 'rgba(160, 80, 67, 0.22)';
+            const corridorWidth = this.getBattleCorridorHalfWidth(battleState);
+            const coreRadius = Math.max(72, Math.min(112, battleState.distance * 0.20));
+            const frontHalfWidth = corridorWidth + 12;
+            const battleLineX = battleState.frontPoint.x;
+            const battleLineY = battleState.frontPoint.y;
+            const frontDx = battleState.normalX * frontHalfWidth;
+            const frontDy = battleState.normalY * frontHalfWidth;
+            const playerRegion = this.getBattleRegionById('home');
+            const enemyRegion = this.getBattleRegionById(this.activeWarTargetId);
+            const playerPolygon = playerRegion ? this.getRegionPointList(playerRegion.points, fieldWidth, fieldHeight) : [];
+            const enemyPolygon = enemyRegion ? this.getRegionPointList(enemyRegion.points, fieldWidth, fieldHeight) : [];
+
+            if (playerPolygon.length) {
+                this.ctx.save();
+                this.tracePolygon(this.ctx, playerPolygon);
+                this.ctx.clip();
+                this.ctx.fillStyle = playerColor;
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    battleState.playerAnchor.x,
+                    battleState.playerAnchor.y,
+                    coreRadius + (battleState.playerControl * 34),
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.fill();
+                this.fillStrategicCorridor(this.ctx, battleState.playerAnchor, battleState.frontPoint, corridorWidth);
+                this.ctx.restore();
+            }
+
+            if (enemyPolygon.length) {
+                this.ctx.save();
+                this.tracePolygon(this.ctx, enemyPolygon);
+                this.ctx.clip();
+                this.ctx.fillStyle = enemyColor;
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    battleState.enemyAnchor.x,
+                    battleState.enemyAnchor.y,
+                    coreRadius + (battleState.enemyControl * 34),
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.fill();
+                this.fillStrategicCorridor(this.ctx, battleState.frontPoint, battleState.enemyAnchor, corridorWidth);
+                this.ctx.restore();
+            }
+
+            this.ctx.strokeStyle = 'rgba(255, 246, 174, 0.88)';
+            this.ctx.lineWidth = 4;
+            this.ctx.beginPath();
+            this.ctx.moveTo(
+                battleLineX + frontDx + (Math.sin(performance.now() / 380) * battleState.normalX * 6),
+                battleLineY + frontDy + (Math.sin(performance.now() / 380) * battleState.normalY * 6)
+            );
+            this.ctx.lineTo(
+                battleLineX - frontDx - (Math.sin(performance.now() / 380) * battleState.normalX * 6),
+                battleLineY - frontDy - (Math.sin(performance.now() / 380) * battleState.normalY * 6)
+            );
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = 'rgba(255, 246, 174, 0.92)';
+            this.ctx.font = 'bold 16px Segoe UI';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('FRONT', battleState.frontPoint.x, battleState.frontPoint.y - 18);
+            return;
+        }
+
         const frontSegments = this.calculateFrontLineSegments();
         const frontX = this.frontLineX;
         const leftIsPlayer = this.selectedCountrySide === 'left';
@@ -1440,7 +1540,12 @@ class Game {
         const height = isStrategicView ? 58 : 40;
         const barWidth = width - 26;
         const barHeight = 12;
-        const leftBarWidth = barWidth * (leftPercent / 100);
+        const battleState = isStrategicView ? this.getStrategicBattleState(this.getBattlefieldWidth(), this.getBattlefieldHeight()) : null;
+        const playerPercent = battleState ? Math.round(battleState.playerControl * 100) : (this.selectedCountrySide === 'left' ? leftPercent : rightPercent);
+        const enemyPercent = 100 - playerPercent;
+        const leftBarWidth = isStrategicView
+            ? barWidth * (playerPercent / 100)
+            : barWidth * (leftPercent / 100);
 
         this.ctx.fillStyle = 'rgba(5, 10, 12, 0.68)';
         this.ctx.beginPath();
@@ -1455,11 +1560,19 @@ class Game {
         this.ctx.fillStyle = '#f2f5e8';
         this.ctx.font = '12px Segoe UI';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(`Left Country ${leftPercent}% | Right Country ${rightPercent}% | Zoom ${Math.round(this.viewScale * 100)}%`, x, y + 32);
+        if (battleState) {
+            this.ctx.fillText(
+                `${battleState.playerCountry.name} ${playerPercent}% | ${battleState.warTarget.name} ${enemyPercent}% | Zoom ${Math.round(this.viewScale * 100)}%`,
+                x,
+                y + 32
+            );
+        } else {
+            this.ctx.fillText(`Left Country ${leftPercent}% | Right Country ${rightPercent}% | Zoom ${Math.round(this.viewScale * 100)}%`, x, y + 32);
+        }
         if (isStrategicView) {
             this.ctx.font = '11px Segoe UI';
             this.ctx.fillStyle = 'rgba(255, 241, 185, 0.92)';
-            this.ctx.fillText('Scroll in to watch the battle on the active front.', x, y + 48);
+            this.ctx.fillText('The stronger army pushes the front and expands across the map.', x, y + 48);
         }
     }
 
@@ -1971,6 +2084,195 @@ class Game {
         return labels[status] || 'Neutral';
     }
 
+    getCountryRegionSet() {
+        return this.countryRegionDefinitions[this.selectedCountrySide] || this.countryRegionDefinitions.right;
+    }
+
+    getCountryRegionStatus(regionId) {
+        if (regionId === 'home') return 'homeland';
+        return this.getNeighborStatus(regionId);
+    }
+
+    getCountryRegionEntries() {
+        const regionSet = this.getCountryRegionSet();
+        const homeCountry = this.getSelectedCountry();
+        const entries = [{
+            id: 'home',
+            name: homeCountry.name,
+            status: 'homeland',
+            points: regionSet.home.points
+        }];
+
+        this.getCountryNeighbors().forEach(neighbor => {
+            const points = regionSet.neighbors[neighbor.id];
+            if (!points) return;
+            entries.push({
+                id: neighbor.id,
+                name: neighbor.name,
+                status: this.getNeighborStatus(neighbor.id),
+                points
+            });
+        });
+
+        return entries;
+    }
+
+    getBattleMapRegionEntries() {
+        const warTarget = this.getActiveWarTarget();
+        if (!warTarget) return [];
+
+        return [
+            {
+                id: 'home',
+                name: this.getSelectedCountry().name,
+                status: 'homeland',
+                points: [[0.05, 0.23], [0.18, 0.12], [0.36, 0.13], [0.48, 0.24], [0.52, 0.42], [0.45, 0.61], [0.31, 0.78], [0.12, 0.75], [0.04, 0.56]]
+            },
+            {
+                id: warTarget.id,
+                name: warTarget.name,
+                status: this.getNeighborStatus(warTarget.id),
+                points: [[0.52, 0.24], [0.64, 0.13], [0.82, 0.12], [0.95, 0.23], [0.96, 0.56], [0.88, 0.75], [0.69, 0.78], [0.55, 0.61], [0.48, 0.42]]
+            }
+        ];
+    }
+
+    getBattleRegionEntries() {
+        return this.getBattleMapRegionEntries();
+    }
+
+    getCountryRegionRenderEntries(entries = this.getCountryRegionEntries()) {
+        return entries.slice().sort((a, b) => {
+            if (a.id === 'home') return 1;
+            if (b.id === 'home') return -1;
+            return 0;
+        });
+    }
+
+    getCountryRegionPalette(status) {
+        const palettes = {
+            homeland: { fill: 'rgba(61, 127, 78, 0.46)', stroke: 'rgba(196, 241, 173, 0.88)', label: '#f2ffe6' },
+            neutral: { fill: 'rgba(78, 90, 66, 0.28)', stroke: 'rgba(226, 235, 210, 0.24)', label: '#eef4d7' },
+            allied: { fill: 'rgba(44, 106, 64, 0.42)', stroke: 'rgba(189, 230, 157, 0.9)', label: '#eefadf' },
+            hostile: { fill: 'rgba(128, 57, 51, 0.42)', stroke: 'rgba(240, 162, 134, 0.9)', label: '#fff0e4' },
+            occupied: { fill: 'rgba(144, 115, 55, 0.44)', stroke: 'rgba(239, 212, 128, 0.92)', label: '#fff5d5' },
+            puppet: { fill: 'rgba(90, 82, 142, 0.42)', stroke: 'rgba(193, 181, 244, 0.9)', label: '#f2ecff' },
+            annexed: { fill: 'rgba(59, 120, 73, 0.52)', stroke: 'rgba(190, 240, 160, 0.96)', label: '#eefadf' }
+        };
+
+        return palettes[status] || palettes.neutral;
+    }
+
+    getRegionPointList(points, width, height) {
+        return points.map(([x, y]) => ({
+            x: x * width,
+            y: y * height
+        }));
+    }
+
+    getPolygonCenter(points) {
+        if (!points.length) return { x: 0, y: 0 };
+        const total = points.reduce((sum, point) => ({
+            x: sum.x + point.x,
+            y: sum.y + point.y
+        }), { x: 0, y: 0 });
+
+        return {
+            x: total.x / points.length,
+            y: total.y / points.length
+        };
+    }
+
+    isPointInPolygon(point, polygon) {
+        let inside = false;
+
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].x;
+            const yi = polygon[i].y;
+            const xj = polygon[j].x;
+            const yj = polygon[j].y;
+            const intersects = ((yi > point.y) !== (yj > point.y))
+                && (point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || 0.00001) + xi);
+
+            if (intersects) inside = !inside;
+        }
+
+        return inside;
+    }
+
+    renderCountryRegionMap(board) {
+        if (!board) return;
+
+        const svgNs = 'http://www.w3.org/2000/svg';
+        const overlay = document.createElementNS(svgNs, 'svg');
+        overlay.setAttribute('viewBox', '0 0 1000 700');
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.classList.add('country-region-overlay');
+
+        this.getCountryRegionRenderEntries().forEach(region => {
+            const palette = this.getCountryRegionPalette(region.status);
+            const polygon = document.createElementNS(svgNs, 'polygon');
+            polygon.setAttribute('points', region.points.map(([x, y]) => `${x * 1000},${y * 700}`).join(' '));
+            polygon.setAttribute('fill', palette.fill);
+            polygon.setAttribute('stroke', palette.stroke);
+            polygon.setAttribute('stroke-width', region.status === 'annexed' ? '5' : '3');
+            polygon.classList.add('country-region-path');
+            overlay.appendChild(polygon);
+
+            const center = this.getPolygonCenter(this.getRegionPointList(region.points, 1000, 700));
+            const label = document.createElementNS(svgNs, 'text');
+            label.setAttribute('x', String(center.x));
+            label.setAttribute('y', String(center.y));
+            label.setAttribute('fill', palette.label);
+            label.setAttribute('text-anchor', 'middle');
+            label.classList.add('country-region-label');
+            label.textContent = region.name;
+            overlay.appendChild(label);
+        });
+
+        board.appendChild(overlay);
+    }
+
+    drawCountryRegionsOnCanvas(ctx, width, height) {
+        this.getCountryRegionRenderEntries().forEach(region => {
+            const palette = this.getCountryRegionPalette(region.status);
+            const points = this.getRegionPointList(region.points, width, height);
+            const center = this.getPolygonCenter(points);
+
+            ctx.fillStyle = palette.fill;
+            ctx.strokeStyle = palette.stroke;
+            ctx.lineWidth = region.status === 'annexed' ? 5 : 3;
+            this.tracePolygon(ctx, points);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = palette.label;
+            ctx.font = 'bold 13px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(region.name, center.x, center.y + 4);
+        });
+    }
+
+    drawBattleRegionOutlines(ctx, width, height) {
+        this.getCountryRegionRenderEntries(this.getBattleRegionEntries()).forEach(region => {
+            const points = this.getRegionPointList(region.points, width, height);
+            const center = this.getPolygonCenter(points);
+            const isHome = region.id === 'home';
+
+            ctx.fillStyle = isHome ? 'rgba(52, 138, 91, 0.12)' : 'rgba(160, 80, 67, 0.12)';
+            ctx.strokeStyle = isHome ? 'rgba(196, 241, 173, 0.9)' : 'rgba(240, 162, 134, 0.92)';
+            ctx.lineWidth = 3;
+            this.tracePolygon(ctx, points);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#f2f5e8';
+            ctx.font = 'bold 13px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(region.name, center.x, center.y + 4);
+        });
+    }
+
     getStrategicBonuses() {
         const bonuses = {
             oilRate: 0,
@@ -2211,6 +2513,7 @@ class Game {
         `;
 
         board.innerHTML = '';
+        this.renderCountryRegionMap(board);
         this.countryMapObjects.forEach(obj => {
             const marker = document.createElement('div');
             marker.className = `country-structure ${obj.type}`;
@@ -2611,9 +2914,154 @@ class Game {
     }
 
     getStrategicPlayerAnchor(width, height) {
-        return this.selectedCountrySide === 'right'
-            ? this.getStrategicMapPoint(0.58, 0.50, width, height)
-            : this.getStrategicMapPoint(0.42, 0.50, width, height);
+        return this.getStrategicMapPoint(0.25, 0.46, width, height);
+    }
+
+    getStrategicBattleState(width, height) {
+        const warTarget = this.getActiveWarTarget();
+        if (!warTarget) return null;
+
+        const rawFrontRatio = this.calculateFrontLineX() / this.getBattlefieldWidth();
+        const playerControl = rawFrontRatio;
+        const clampedControl = Math.max(0.08, Math.min(0.92, playerControl));
+        const battleRegions = this.getBattleRegionEntries();
+        const playerRegion = battleRegions.find(region => region.id === 'home');
+        const enemyRegion = battleRegions.find(region => region.id === warTarget.id);
+        const playerAnchor = playerRegion
+            ? this.getPolygonCenter(this.getRegionPointList(playerRegion.points, width, height))
+            : this.getStrategicPlayerAnchor(width, height);
+        const enemyAnchor = enemyRegion
+            ? this.getPolygonCenter(this.getRegionPointList(enemyRegion.points, width, height))
+            : this.getStrategicMapPoint(0.75, 0.46, width, height);
+        const dx = enemyAnchor.x - playerAnchor.x;
+        const dy = enemyAnchor.y - playerAnchor.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const frontPoint = {
+            x: playerAnchor.x + (dx * clampedControl),
+            y: playerAnchor.y + (dy * clampedControl)
+        };
+
+        return {
+            warTarget,
+            playerCountry: this.getSelectedCountry(),
+            playerAnchor,
+            enemyAnchor,
+            frontPoint,
+            playerControl: clampedControl,
+            enemyControl: 1 - clampedControl,
+            dx,
+            dy,
+            distance,
+            normalX: -dy / distance,
+            normalY: dx / distance
+        };
+    }
+
+    getBattleCorridorHalfWidth(battleState) {
+        return Math.max(28, Math.min(42, battleState.distance * 0.09));
+    }
+
+    getBattleRegionById(regionId) {
+        return this.getBattleRegionEntries().find(region => region.id === regionId) || null;
+    }
+
+    isPointInWarTerritory(x, y, side = 'player') {
+        if (!this.isStrategicBattleView()) return true;
+
+        const battleState = this.getStrategicBattleState(this.getBattlefieldWidth(), this.getBattlefieldHeight());
+        if (!battleState) return true;
+
+        const point = { x, y };
+        const playerRegion = this.getBattleRegionById('home');
+        const enemyRegion = this.getBattleRegionById(this.activeWarTargetId);
+        const playerPolygon = playerRegion ? this.getRegionPointList(playerRegion.points, this.getBattlefieldWidth(), this.getBattlefieldHeight()) : [];
+        const enemyPolygon = enemyRegion ? this.getRegionPointList(enemyRegion.points, this.getBattlefieldWidth(), this.getBattlefieldHeight()) : [];
+        const axisProjection = (((x - battleState.playerAnchor.x) * battleState.dx) + ((y - battleState.playerAnchor.y) * battleState.dy)) / (battleState.distance * battleState.distance);
+        const projection = Math.max(0, Math.min(1, axisProjection));
+        const closestPoint = {
+            x: battleState.playerAnchor.x + (battleState.dx * projection),
+            y: battleState.playerAnchor.y + (battleState.dy * projection)
+        };
+        const perpendicularDistance = Math.hypot(x - closestPoint.x, y - closestPoint.y);
+        const corridorHalfWidth = this.getBattleCorridorHalfWidth(battleState) * 1.15;
+
+        if (side === 'player') {
+            if (playerPolygon.length && this.isPointInPolygon(point, playerPolygon)) return true;
+            return perpendicularDistance <= corridorHalfWidth && projection <= battleState.playerControl;
+        }
+
+        if (enemyPolygon.length && this.isPointInPolygon(point, enemyPolygon)) return true;
+        return perpendicularDistance <= corridorHalfWidth && projection >= battleState.playerControl;
+    }
+
+    placeUnitOnWarSide(unit, side = 'enemy') {
+        if (!this.isStrategicBattleView() || !unit) return unit;
+
+        const battleState = this.getStrategicBattleState(this.getBattlefieldWidth(), this.getBattlefieldHeight());
+        if (!battleState) return unit;
+
+        const corridorHalfWidth = this.getBattleCorridorHalfWidth(battleState);
+        const anchor = side === 'player' ? battleState.playerAnchor : battleState.enemyAnchor;
+        const direction = side === 'player' ? -1 : 1;
+        const alongOffset = (18 + Math.random() * 68) * direction;
+        const lateralOffset = (Math.random() - 0.5) * corridorHalfWidth * 1.2;
+        const normalX = battleState.normalX;
+        const normalY = battleState.normalY;
+        const axisX = battleState.dx / battleState.distance;
+        const axisY = battleState.dy / battleState.distance;
+        const radius = unit.radius || 16;
+        let nextX = anchor.x + (axisX * alongOffset) + (normalX * lateralOffset);
+        let nextY = anchor.y + (axisY * alongOffset) + (normalY * lateralOffset);
+
+        nextX = Math.max(radius, Math.min(this.getBattlefieldWidth() - radius, nextX));
+        nextY = Math.max(radius, Math.min(this.getBattlefieldHeight() - radius, nextY));
+
+        if (!this.isPointInWarTerritory(nextX, nextY, side)) {
+            const fallbackProjection = side === 'player'
+                ? Math.max(0.06, battleState.playerControl * 0.35)
+                : Math.min(0.94, battleState.playerControl + ((1 - battleState.playerControl) * 0.35));
+            nextX = battleState.playerAnchor.x + (battleState.dx * fallbackProjection);
+            nextY = battleState.playerAnchor.y + (battleState.dy * fallbackProjection);
+        }
+
+        unit.x = nextX;
+        unit.y = nextY;
+        if ('spawnX' in unit) unit.spawnX = nextX;
+        if ('spawnY' in unit) unit.spawnY = nextY;
+        return unit;
+    }
+
+    fillStrategicCorridor(ctx, fromPoint, toPoint, halfWidth) {
+        const dx = toPoint.x - fromPoint.x;
+        const dy = toPoint.y - fromPoint.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const normalX = -dy / distance;
+        const normalY = dx / distance;
+
+        ctx.beginPath();
+        ctx.moveTo(fromPoint.x + (normalX * halfWidth), fromPoint.y + (normalY * halfWidth));
+        ctx.lineTo(toPoint.x + (normalX * halfWidth), toPoint.y + (normalY * halfWidth));
+        ctx.lineTo(toPoint.x - (normalX * halfWidth), toPoint.y - (normalY * halfWidth));
+        ctx.lineTo(fromPoint.x - (normalX * halfWidth), fromPoint.y - (normalY * halfWidth));
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    drawStrategicCountryBadge(ctx, point, name, fillStyle, strokeStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(point.x - 70, point.y - 26, 140, 52, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#f2f5e8';
+        ctx.font = 'bold 13px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, point.x, point.y - 2);
+        ctx.font = '10px Segoe UI';
+        ctx.fillText('COUNTRY', point.x, point.y + 14);
     }
 
     drawStrategicInfrastructureMarker(ctx, obj, width, height) {
@@ -2725,43 +3173,69 @@ class Game {
         }
         ctx.restore();
 
+        if (this.isStrategicBattleView()) {
+            this.drawBattleRegionOutlines(ctx, width, height);
+        } else {
+            this.drawCountryRegionsOnCanvas(ctx, width, height);
+        }
         this.countryMapObjects.forEach(obj => this.drawStrategicInfrastructureMarker(ctx, obj, width, height));
-        this.getCountryNeighbors().forEach(neighbor => this.drawStrategicNeighborMarker(ctx, neighbor, width, height));
+        this.getCountryNeighbors()
+            .filter(neighbor => !this.isStrategicBattleView() || neighbor.id === this.activeWarTargetId)
+            .forEach(neighbor => this.drawStrategicNeighborMarker(ctx, neighbor, width, height));
 
-        const warTarget = this.getActiveWarTarget();
-        if (warTarget) {
-            const playerAnchor = this.getStrategicPlayerAnchor(width, height);
-            const targetPoint = this.getStrategicMapPoint(warTarget.x, warTarget.y, width, height);
-            const frontPoint = {
-                x: (playerAnchor.x + targetPoint.x) * 0.5,
-                y: (playerAnchor.y + targetPoint.y) * 0.5
-            };
+        const battleState = this.getStrategicBattleState(width, height);
+        if (battleState) {
             const pulse = 1 + (Math.sin(performance.now() / 220) * 0.08);
+            const corridorWidth = Math.max(24, Math.min(34, battleState.distance * 0.08));
+            const battlefieldMid = {
+                x: (battleState.playerAnchor.x + battleState.enemyAnchor.x) * 0.5,
+                y: (battleState.playerAnchor.y + battleState.enemyAnchor.y) * 0.5
+            };
+
+            ctx.fillStyle = 'rgba(255, 228, 159, 0.12)';
+            this.fillStrategicCorridor(ctx, battleState.playerAnchor, battleState.enemyAnchor, corridorWidth);
+
+            this.drawStrategicCountryBadge(
+                ctx,
+                battleState.playerAnchor,
+                battleState.playerCountry.name,
+                'rgba(41, 92, 57, 0.88)',
+                '#bde69d'
+            );
+            this.drawStrategicCountryBadge(
+                ctx,
+                battleState.enemyAnchor,
+                battleState.warTarget.name,
+                'rgba(108, 42, 39, 0.9)',
+                '#f0a286'
+            );
 
             ctx.strokeStyle = 'rgba(255, 228, 159, 0.65)';
             ctx.lineWidth = 3;
             ctx.setLineDash([14, 10]);
             ctx.beginPath();
-            ctx.moveTo(playerAnchor.x, playerAnchor.y);
-            ctx.lineTo(targetPoint.x, targetPoint.y);
+            ctx.moveTo(battleState.playerAnchor.x, battleState.playerAnchor.y);
+            ctx.lineTo(battleState.enemyAnchor.x, battleState.enemyAnchor.y);
             ctx.stroke();
             ctx.setLineDash([]);
 
             ctx.fillStyle = 'rgba(255, 228, 159, 0.15)';
             ctx.beginPath();
-            ctx.arc(frontPoint.x, frontPoint.y, 46 * pulse, 0, Math.PI * 2);
+            ctx.arc(battleState.frontPoint.x, battleState.frontPoint.y, 46 * pulse, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.strokeStyle = 'rgba(255, 228, 159, 0.92)';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(frontPoint.x, frontPoint.y, 34 * pulse, 0, Math.PI * 2);
+            ctx.arc(battleState.frontPoint.x, battleState.frontPoint.y, 34 * pulse, 0, Math.PI * 2);
             ctx.stroke();
 
             ctx.fillStyle = '#fff1b9';
             ctx.font = 'bold 14px Segoe UI';
             ctx.textAlign = 'center';
-            ctx.fillText('ACTIVE FRONT', frontPoint.x, frontPoint.y - 48);
+            ctx.fillText('ACTIVE FRONT', battleState.frontPoint.x, battleState.frontPoint.y - 48);
+            ctx.font = 'bold 12px Segoe UI';
+            ctx.fillText('BATTLEFIELD', battlefieldMid.x, battlefieldMid.y - 18);
         }
     }
 
@@ -3213,12 +3687,20 @@ class Game {
         }
 
         const bounds = Soldier.getBattleBounds(fieldWidth, fieldHeight, radius);
-        return (
+        const withinBounds = (
             x >= radius &&
             x <= fieldWidth - radius &&
             y >= bounds.top &&
             y <= bounds.bottom
         );
+
+        if (!withinBounds) return false;
+
+        if (this.isStrategicBattleView() && !this.isPointInWarTerritory(x, y, 'player')) {
+            return false;
+        }
+
+        return true;
     }
 
     collectSupplyCrateAt(x, y) {
