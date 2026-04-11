@@ -95,8 +95,10 @@ class Game {
         this.viewScale = 1;
         this.cameraX = 0;
         this.cameraY = 0;
-        this.battlefieldZoom = 0.68;
-        this.mobileBattlefieldZoom = 0.78;
+        this.defaultBattlefieldZoom = 0.68;
+        this.defaultMobileBattlefieldZoom = 0.78;
+        this.battlefieldZoom = this.defaultBattlefieldZoom;
+        this.mobileBattlefieldZoom = this.defaultMobileBattlefieldZoom;
         this.minBattlefieldZoom = 0.42;
         this.maxBattlefieldZoom = 1.08;
         this.frontLineX = 0;
@@ -117,7 +119,16 @@ class Game {
         this.baseLives = 20;
         this.score = 0;
         this.gold = this.baseStartingGold;
-        this.countryResources = { oil: 40, iron: 40, food: 50, storedTanks: 0, tankFactoryProgress: 0, lastSync: Date.now() };
+        this.countryResources = {
+            treasuryGold: 300,
+            armyReserve: 18,
+            oil: 40,
+            iron: 40,
+            food: 50,
+            storedTanks: 0,
+            tankFactoryProgress: 0,
+            lastSync: Date.now()
+        };
         this.lives = this.baseLives;
         this.campaignLevel = 1;
         this.maxCampaignLevels = 15;
@@ -145,14 +156,14 @@ class Game {
         };
         this.countryNeighborDefinitions = {
             right: [
-                { id: 'north-federation', name: 'North Federation', x: 0.60, y: 0.17 },
-                { id: 'coastal-union', name: 'Coastal Union', x: 0.83, y: 0.39 },
-                { id: 'southern-league', name: 'Southern League', x: 0.71, y: 0.76 }
+                { id: 'north-federation', name: 'North Federation', x: 0.60, y: 0.17, resource: 'iron', warPower: 1.18 },
+                { id: 'coastal-union', name: 'Coastal Union', x: 0.83, y: 0.39, resource: 'oil', warPower: 1.08 },
+                { id: 'southern-league', name: 'Southern League', x: 0.71, y: 0.76, resource: 'food', warPower: 0.96 }
             ],
             left: [
-                { id: 'ridge-republic', name: 'Ridge Republic', x: 0.27, y: 0.18 },
-                { id: 'western-pact', name: 'Western Pact', x: 0.12, y: 0.46 },
-                { id: 'sun-coast', name: 'Sun Coast', x: 0.31, y: 0.79 }
+                { id: 'ridge-republic', name: 'Ridge Republic', x: 0.27, y: 0.18, resource: 'iron', warPower: 1.14 },
+                { id: 'western-pact', name: 'Western Pact', x: 0.12, y: 0.46, resource: 'oil', warPower: 1.04 },
+                { id: 'sun-coast', name: 'Sun Coast', x: 0.31, y: 0.79, resource: 'food', warPower: 0.92 }
             ]
         };
         this.selectedCountrySide = this.loadCountrySide();
@@ -164,6 +175,9 @@ class Game {
         this.countryResources = this.loadCountryEconomy();
         this.countryDiplomacy = this.loadCountryDiplomacy();
         this.selectedNeighborId = null;
+        this.activeWarTargetId = null;
+        this.pendingConquestNeighborId = null;
+        this.regionalVictoryAchieved = false;
         this.cardDefinitions = this.createCardDefinitions();
         this.playerDeck = this.loadDeck();
 
@@ -232,6 +246,7 @@ class Game {
         this.countryFactoryInterval = 9000;
         this.countryMapWasPlaying = false;
         this.countryMapRefreshHandle = null;
+        this.warTargetStrengthMultiplier = 1;
 
         // Input Handling
         this.input = new InputHandler();
@@ -386,27 +401,41 @@ class Game {
                     this.buildSound.cloneNode().play().catch(() => {});
                 }
             } else if (this.selectedUnitType === 'soldier') {
-                if (this.gold >= 30 && this.soldiers.length < this.maxFriendlySoldiers) {
+                if (this.gold >= 30 && this.soldiers.length < this.maxFriendlySoldiers && this.countryResources.armyReserve >= 1) {
                     this.soldiers.push(new Soldier(placeX, placeY));
                     this.gold -= 30;
+                    this.countryResources.armyReserve -= 1;
+                    this.saveCountryEconomy();
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
+                } else if (this.countryResources.armyReserve < 1) {
+                    this.showEventBanner('Not enough trained army. Build more training grounds.');
                 }
             } else if (this.selectedUnitType === 'elite-soldier') {
-                if (this.gold >= 85 && this.soldiers.length < this.maxFriendlySoldiers) {
+                if (this.gold >= 85 && this.soldiers.length < this.maxFriendlySoldiers && this.countryResources.armyReserve >= 2) {
                     this.soldiers.push(new EliteSoldier(placeX, placeY));
                     this.gold -= 85;
+                    this.countryResources.armyReserve -= 2;
+                    this.saveCountryEconomy();
                     this.updateHUD();
                     this.buildSound.cloneNode().play().catch(() => {});
+                } else if (this.countryResources.armyReserve < 2) {
+                    this.showEventBanner('Elite troops need more trained army reserve.');
                 }
             } else if (this.selectedUnitType === 'flamethrower-squad') {
                 if (this.gold >= 120 && this.soldiers.length < this.maxFriendlySoldiers) {
                     const squadSize = 4 + Math.floor(Math.random() * 2);
-                    const spawned = this.spawnInfantrySquad(FlamethrowerSoldier, placeX, placeY, squadSize, 18);
-                    if (spawned > 0) {
-                        this.gold -= 120;
-                        this.updateHUD();
-                        this.buildSound.cloneNode().play().catch(() => {});
+                    if (this.countryResources.armyReserve < squadSize) {
+                        this.showEventBanner('Flamethrower squads need more trained army reserve.');
+                    } else {
+                        const spawned = this.spawnInfantrySquad(FlamethrowerSoldier, placeX, placeY, squadSize, 18);
+                        if (spawned > 0) {
+                            this.countryResources.armyReserve -= spawned;
+                            this.saveCountryEconomy();
+                            this.gold -= 120;
+                            this.updateHUD();
+                            this.buildSound.cloneNode().play().catch(() => {});
+                        }
                     }
                 }
             } else if (this.selectedUnitType === 'tank') {
@@ -592,6 +621,20 @@ class Game {
         this.clampCamera();
     }
 
+    configureBattleViewForCurrentConflict() {
+        if (this.activeWarTargetId) {
+            this.battlefieldZoom = this.minBattlefieldZoom;
+            this.mobileBattlefieldZoom = this.minBattlefieldZoom;
+        } else {
+            this.battlefieldZoom = this.defaultBattlefieldZoom;
+            this.mobileBattlefieldZoom = this.defaultMobileBattlefieldZoom;
+        }
+
+        this.cameraX = 0;
+        this.cameraY = 0;
+        this.updateBattlefieldMetrics();
+    }
+
     getBattlefieldWidth() {
         return this.worldWidth || this.canvas.width;
     }
@@ -691,15 +734,16 @@ class Game {
 
     start() {
         this.isPlaying = true;
-        this.updateBattlefieldMetrics();
+        this.configureBattleViewForCurrentConflict();
         this.applyLevelConfig();
-        this.resetBattleState();
         this.syncCountryEconomy(true);
+        this.applyWarTargetBattleModifiers();
+        this.resetBattleState();
         this.lastTime = performance.now();
         this.elapsedTime = 0;
         this.spawnIntensityLevel = 1;
         this.enemyResources = 1;
-        this.enemyStrengthMultiplier = 1;
+        this.enemyStrengthMultiplier = this.warTargetStrengthMultiplier;
         this.enemyDefeated = false;
         this.enemyArtilleryTimer = 0;
         this.enemySniperTimer = 0;
@@ -716,14 +760,20 @@ class Game {
             mapMode: this.customMapMode,
             level: this.campaignLevel,
             countrySide: this.selectedCountrySide,
-            countryName: country.name
+            countryName: country.name,
+            warTarget: this.activeWarTargetId
         });
-        this.showEventBanner(`Level ${this.campaignLevel}/${this.maxCampaignLevels}: ${country.name} on ${this.customMapMode} map.`);
+        const warTarget = this.getActiveWarTarget();
+        this.showEventBanner(
+            warTarget
+                ? `${country.name} attacks ${warTarget.name}. Scroll in on the active front to watch the battle.`
+                : `Level ${this.campaignLevel}/${this.maxCampaignLevels}: ${country.name} on ${this.customMapMode} map.`
+        );
         requestAnimationFrame(this.loop);
     }
 
     resetBattleState() {
-        this.gold = this.baseStartingGold;
+        this.gold = Math.floor(this.countryResources.treasuryGold) + this.getBattleGoldGrant();
         this.lives = this.baseLives;
         this.wave = 1;
         this.awaitingNukeTarget = false;
@@ -791,7 +841,7 @@ class Game {
         this.elapsedTime += deltaTime;
         this.spawnIntensityLevel = Math.floor(this.elapsedTime / 10000) + 1 + this.levelConfig.spawnIntensityBonus;
         this.enemyResources = Math.max(0, 1 - (this.elapsedTime / this.levelConfig.levelDurationMs));
-        this.enemyStrengthMultiplier = Math.max(this.levelConfig.enemyStrengthFloor, this.enemyResources);
+        this.enemyStrengthMultiplier = Math.max(this.levelConfig.enemyStrengthFloor, this.enemyResources) * this.warTargetStrengthMultiplier;
 
         if (this.customMapMode === 'ocean') {
             this.updateOceanBattle(deltaTime);
@@ -1386,7 +1436,8 @@ class Game {
         const x = this.canvas.width * 0.5;
         const y = this.isMobileLayout() ? 66 : 16;
         const width = Math.min(360, this.canvas.width - 28);
-        const height = 40;
+        const isStrategicView = this.isStrategicBattleView();
+        const height = isStrategicView ? 58 : 40;
         const barWidth = width - 26;
         const barHeight = 12;
         const leftBarWidth = barWidth * (leftPercent / 100);
@@ -1405,6 +1456,11 @@ class Game {
         this.ctx.font = '12px Segoe UI';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(`Left Country ${leftPercent}% | Right Country ${rightPercent}% | Zoom ${Math.round(this.viewScale * 100)}%`, x, y + 32);
+        if (isStrategicView) {
+            this.ctx.font = '11px Segoe UI';
+            this.ctx.fillStyle = 'rgba(255, 241, 185, 0.92)';
+            this.ctx.fillText('Scroll in to watch the battle on the active front.', x, y + 48);
+        }
     }
 
     spawnInfantrySquad(UnitType, centerX, centerY, count, radius = 22) {
@@ -1523,6 +1579,19 @@ class Game {
         return true;
     }
 
+    applyWarTargetBattleModifiers() {
+        const warTarget = this.getActiveWarTarget();
+        this.warTargetStrengthMultiplier = warTarget?.warPower || 1;
+
+        if (!warTarget) return;
+
+        this.maxEnemySoldiers = Math.round(this.maxEnemySoldiers * this.warTargetStrengthMultiplier);
+        this.maxEnemyArtillery = Math.max(1, Math.round(this.maxEnemyArtillery * this.warTargetStrengthMultiplier));
+        this.maxEnemySnipers = Math.max(1, Math.round(this.maxEnemySnipers * this.warTargetStrengthMultiplier));
+        this.maxEnemyTanks = Math.max(1, Math.round(this.maxEnemyTanks * this.warTargetStrengthMultiplier));
+        this.maxEnemyPlanes = Math.max(1, Math.round(this.maxEnemyPlanes * Math.max(1, this.warTargetStrengthMultiplier - 0.05)));
+    }
+
     loadCountrySide() {
         try {
             const savedSide = localStorage.getItem(this.countryStorageKey);
@@ -1543,6 +1612,7 @@ class Game {
     setCountrySide(side) {
         this.selectedCountrySide = side === 'right' ? 'right' : 'left';
         this.selectedNeighborId = null;
+        this.regionalVictoryAchieved = this.isRegionalVictoryAchieved();
         this.saveCountrySide();
         this.renderCountrySelection();
         this.renderCountryMap();
@@ -1745,6 +1815,7 @@ class Game {
         document.getElementById('level-display').innerText = `${this.campaignLevel}/${this.maxCampaignLevels}`;
         document.getElementById('health-display').innerText = this.lives;
         document.getElementById('gold-display').innerText = this.gold;
+        document.getElementById('army-display').innerText = this.getWholeArmyCount();
         document.getElementById('oil-display').innerText = Math.floor(this.countryResources.oil);
         document.getElementById('iron-display').innerText = Math.floor(this.countryResources.iron);
         document.getElementById('food-display').innerText = Math.floor(this.countryResources.food);
@@ -1783,7 +1854,7 @@ class Game {
             const parsed = JSON.parse(raw);
             if (!Array.isArray(parsed)) return [];
 
-            const validTypes = new Set(['oil-infrastructure', 'iron-mine', 'farm', 'tank-factory', 'tank-storage']);
+            const validTypes = new Set(['gold-mine', 'oil-infrastructure', 'iron-mine', 'farm', 'training-ground', 'tank-factory', 'tank-storage']);
             return parsed
                 .filter(obj => obj && validTypes.has(obj.type))
                 .map(obj => ({
@@ -1802,6 +1873,8 @@ class Game {
             const raw = localStorage.getItem(this.countryEconomyStorageKey);
             if (!raw) {
                 return {
+                    treasuryGold: 300,
+                    armyReserve: 18,
                     oil: 40,
                     iron: 40,
                     food: 50,
@@ -1813,6 +1886,8 @@ class Game {
 
             const parsed = JSON.parse(raw);
             return {
+                treasuryGold: Number.isFinite(parsed?.treasuryGold) ? Math.max(0, parsed.treasuryGold) : 300,
+                armyReserve: Number.isFinite(parsed?.armyReserve) ? Math.max(0, parsed.armyReserve) : 18,
                 oil: Number.isFinite(parsed?.oil) ? parsed.oil : 40,
                 iron: Number.isFinite(parsed?.iron) ? parsed.iron : 40,
                 food: Number.isFinite(parsed?.food) ? parsed.food : 50,
@@ -1822,6 +1897,8 @@ class Game {
             };
         } catch {
             return {
+                treasuryGold: 300,
+                armyReserve: 18,
                 oil: 40,
                 iron: 40,
                 food: 50,
@@ -1877,6 +1954,98 @@ class Game {
         return this.getCountryNeighbors().find(neighbor => neighbor.id === this.selectedNeighborId) || null;
     }
 
+    getNeighborById(neighborId) {
+        return this.getCountryNeighbors().find(neighbor => neighbor.id === neighborId) || null;
+    }
+
+    getNeighborStatusLabel(status) {
+        const labels = {
+            neutral: 'Neutral',
+            allied: 'Alliance',
+            hostile: 'At War',
+            occupied: 'Occupied',
+            puppet: 'Puppet State',
+            annexed: 'Annexed'
+        };
+
+        return labels[status] || 'Neutral';
+    }
+
+    getStrategicBonuses() {
+        const bonuses = {
+            oilRate: 0,
+            ironRate: 0,
+            foodRate: 0,
+            goldRate: 0,
+            armyRate: 0,
+            storageBonus: 0,
+            startingGoldBonus: 0
+        };
+
+        this.getCountryNeighbors().forEach(neighbor => {
+            const status = this.getNeighborStatus(neighbor.id);
+            if (status === 'neutral' || status === 'hostile') return;
+
+            const resourceKey = neighbor.resource || 'food';
+            const resourceGain = {
+                allied: 0.8,
+                occupied: 1.15,
+                annexed: 1.5,
+                puppet: 1.0
+            }[status] || 0;
+
+            if (resourceKey === 'oil') bonuses.oilRate += resourceGain;
+            if (resourceKey === 'iron') bonuses.ironRate += resourceGain;
+            if (resourceKey === 'food') bonuses.foodRate += resourceGain;
+            if (resourceKey === 'gold') bonuses.goldRate += resourceGain;
+            if (resourceKey === 'army') bonuses.armyRate += resourceGain * 0.35;
+
+            bonuses.startingGoldBonus += {
+                allied: 120,
+                occupied: 180,
+                annexed: 240,
+                puppet: 150
+            }[status] || 0;
+
+            bonuses.storageBonus += {
+                allied: 0,
+                occupied: 2,
+                annexed: 4,
+                puppet: 2
+            }[status] || 0;
+        });
+
+        return bonuses;
+    }
+
+    getWholeArmyCount() {
+        return Math.floor(this.countryResources.armyReserve || 0)
+            + this.soldiers.length
+            + this.snipers.length
+            + this.artilleryUnits.length
+            + this.tanks.length
+            + Math.floor(this.countryResources.storedTanks || 0)
+            + this.planes.length
+            + this.drones.length
+            + this.bulldozers.length;
+    }
+
+    getBattleGoldGrant() {
+        return this.baseStartingGold + this.getStrategicBonuses().startingGoldBonus;
+    }
+
+    getActiveWarTarget() {
+        return this.getNeighborById(this.activeWarTargetId);
+    }
+
+    isRegionalVictoryAchieved() {
+        const neighbors = this.getCountryNeighbors();
+        return neighbors.length > 0 && neighbors.every(neighbor => {
+            const status = this.getNeighborStatus(neighbor.id);
+            return status === 'allied' || status === 'occupied' || status === 'annexed' || status === 'puppet';
+        });
+    }
+
     selectNeighbor(neighborId) {
         this.selectedNeighborId = neighborId;
         this.renderCountryMap();
@@ -1888,6 +2057,7 @@ class Game {
 
         this.countryDiplomacy[this.getDiplomacyKey(neighbor.id)] = status;
         this.saveCountryDiplomacy();
+        this.regionalVictoryAchieved = this.isRegionalVictoryAchieved();
         this.showEventBanner(
             status === 'allied'
                 ? `${neighbor.name} has joined your alliance.`
@@ -1896,11 +2066,76 @@ class Game {
         this.renderCountryMap();
     }
 
+    prepareWarWithSelectedNeighbor() {
+        const neighbor = this.getSelectedNeighbor();
+        if (!neighbor) return false;
+        const currentStatus = this.getNeighborStatus(neighbor.id);
+
+        if (currentStatus === 'annexed' || currentStatus === 'occupied' || currentStatus === 'puppet') {
+            this.showEventBanner(`${neighbor.name} is already under your control.`);
+            return false;
+        }
+
+        this.pendingConquestNeighborId = null;
+        this.activeWarTargetId = neighbor.id;
+        this.countryDiplomacy[this.getDiplomacyKey(neighbor.id)] = 'hostile';
+        this.saveCountryDiplomacy();
+        this.showEventBanner(`${neighbor.name} has become your war target.`);
+        this.renderCountryMap();
+        return true;
+    }
+
+    resolveConquest(outcome) {
+        const neighbor = this.getNeighborById(this.pendingConquestNeighborId);
+        if (!neighbor) return;
+
+        this.countryDiplomacy[this.getDiplomacyKey(neighbor.id)] = outcome;
+        this.pendingConquestNeighborId = null;
+        this.activeWarTargetId = null;
+        this.saveCountryDiplomacy();
+        this.regionalVictoryAchieved = this.isRegionalVictoryAchieved();
+        this.showEventBanner(
+            this.regionalVictoryAchieved
+                ? `${neighbor.name} is now ${this.getNeighborStatusLabel(outcome).toLowerCase()}. ${this.getSelectedCountry().name} now dominates every neighboring country.`
+                : `${neighbor.name} is now ${this.getNeighborStatusLabel(outcome).toLowerCase()}.`
+        );
+        this.renderCountryMap();
+    }
+
+    returnToCountryMapAfterBattle(result) {
+        this.countryResources.treasuryGold = Math.max(0, this.gold - this.getBattleGoldGrant());
+        this.countryResources.lastSync = Date.now();
+        this.saveCountryEconomy();
+        document.getElementById('game-over-screen').classList.add('hidden');
+        document.getElementById('victory-screen').classList.add('hidden');
+        document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('settings-screen').classList.add('hidden');
+        document.getElementById('hud').classList.add('hidden');
+        document.getElementById('hud-actions').classList.add('hidden');
+        document.getElementById('mobile-controls-toggle').classList.add('hidden');
+        document.getElementById('controls').classList.add('hidden');
+
+        if (result === 'victory' && this.activeWarTargetId) {
+            this.pendingConquestNeighborId = this.activeWarTargetId;
+            this.selectedNeighborId = this.activeWarTargetId;
+        } else if (result !== 'victory') {
+            this.pendingConquestNeighborId = null;
+        }
+
+        if (result !== 'victory' || !this.pendingConquestNeighborId) {
+            this.activeWarTargetId = null;
+        }
+
+        this.openCountryMap();
+    }
+
     getCountryMapCounts() {
         const counts = {
+            'gold-mine': 0,
             'oil-infrastructure': 0,
             'iron-mine': 0,
             farm: 0,
+            'training-ground': 0,
             'tank-factory': 0,
             'tank-storage': 0
         };
@@ -1916,9 +2151,11 @@ class Game {
 
     getCountryMapLabel(type) {
         const labels = {
+            'gold-mine': 'Gold',
             'oil-infrastructure': 'Oil',
             'iron-mine': 'Iron',
             farm: 'Farm',
+            'training-ground': 'Drill',
             'tank-factory': 'Factory',
             'tank-storage': 'Depot'
         };
@@ -1927,7 +2164,7 @@ class Game {
     }
 
     setCountryMapTool(type) {
-        const validTypes = new Set(['oil-infrastructure', 'iron-mine', 'farm', 'tank-factory', 'tank-storage', 'erase']);
+        const validTypes = new Set(['gold-mine', 'oil-infrastructure', 'iron-mine', 'farm', 'training-ground', 'tank-factory', 'tank-storage', 'erase']);
         this.countryMapTool = validTypes.has(type) ? type : 'oil-infrastructure';
         document.querySelectorAll('[data-country-tool]').forEach(button => {
             button.classList.toggle('selected', button.dataset.countryTool === this.countryMapTool);
@@ -1944,23 +2181,33 @@ class Game {
         const diplomacyPanel = document.getElementById('country-diplomacy-panel');
         const diplomacyName = document.getElementById('country-diplomacy-name');
         const diplomacyStatus = document.getElementById('country-diplomacy-status');
-        if (!board || !stats || !title || !subtitle || !diplomacyPanel || !diplomacyName || !diplomacyStatus) return;
+        const conquestPanel = document.getElementById('country-conquest-panel');
+        const conquestName = document.getElementById('country-conquest-name');
+        if (!board || !stats || !title || !subtitle || !diplomacyPanel || !diplomacyName || !diplomacyStatus || !conquestPanel || !conquestName) return;
 
         const country = this.getSelectedCountry();
         const counts = this.getCountryMapCounts();
         title.textContent = `${country.name} Command`;
-        subtitle.textContent = `Build ${country.name}'s economy and armored industry.`;
+        subtitle.textContent = this.isRegionalVictoryAchieved()
+            ? `${country.name} now dominates the region. Consolidate your alliances and territory.`
+            : `Build ${country.name}'s economy and armored industry.`;
         stats.innerHTML = `
             <strong>Strategic Assets</strong>
+            <span>Gold mines: ${counts['gold-mine']}</span>
             <span>Oil infrastructure: ${counts['oil-infrastructure']}</span>
             <span>Iron mines: ${counts['iron-mine']}</span>
             <span>Farms: ${counts.farm}</span>
+            <span>Training grounds: ${counts['training-ground']}</span>
             <span>Tank factories: ${counts['tank-factory']}</span>
             <span>Tank depots: ${counts['tank-storage']}</span>
+            <span>Treasury gold: ${Math.floor(this.countryResources.treasuryGold)}</span>
             <span>Oil stockpile: ${Math.floor(this.countryResources.oil)}</span>
             <span>Iron stockpile: ${Math.floor(this.countryResources.iron)}</span>
             <span>Food stockpile: ${Math.floor(this.countryResources.food)}</span>
+            <span>Army reserve: ${Math.floor(this.countryResources.armyReserve)}</span>
             <span>Stored tanks: ${this.countryResources.storedTanks}/${this.getTankStorageCapacity()}</span>
+            <span>Whole army: ${this.getWholeArmyCount()}</span>
+            <span>Campaign status: ${this.isRegionalVictoryAchieved() ? 'Regional dominance secured' : 'Expansion in progress'}</span>
         `;
 
         board.innerHTML = '';
@@ -1981,7 +2228,7 @@ class Game {
             button.dataset.neighborId = neighbor.id;
             button.style.left = `${neighbor.x * 100}%`;
             button.style.top = `${neighbor.y * 100}%`;
-            button.innerHTML = `${neighbor.name}<small>${status === 'allied' ? 'Alliance' : status === 'hostile' ? 'At War' : 'Neutral'}</small>`;
+            button.innerHTML = `${neighbor.name}<small>${this.getNeighborStatusLabel(status)}</small>`;
             board.appendChild(button);
         });
 
@@ -1990,9 +2237,17 @@ class Game {
             const status = this.getNeighborStatus(selectedNeighbor.id);
             diplomacyPanel.classList.remove('hidden');
             diplomacyName.textContent = selectedNeighbor.name;
-            diplomacyStatus.textContent = `Status: ${status === 'allied' ? 'Alliance' : status === 'hostile' ? 'At War' : 'Neutral'}`;
+            diplomacyStatus.textContent = `Status: ${this.getNeighborStatusLabel(status)}`;
         } else {
             diplomacyPanel.classList.add('hidden');
+        }
+
+        const conquestNeighbor = this.getNeighborById(this.pendingConquestNeighborId);
+        if (conquestNeighbor) {
+            conquestPanel.classList.remove('hidden');
+            conquestName.textContent = `Victory Over ${conquestNeighbor.name}`;
+        } else {
+            conquestPanel.classList.add('hidden');
         }
 
         this.setCountryMapTool(this.countryMapTool);
@@ -2102,7 +2357,7 @@ class Game {
 
     getTankStorageCapacity() {
         const counts = this.getCountryMapCounts();
-        return counts['tank-storage'] * 8;
+        return (counts['tank-storage'] * 8) + this.getStrategicBonuses().storageBonus;
     }
 
     syncCountryEconomy(force = false) {
@@ -2114,9 +2369,17 @@ class Game {
 
         if (elapsedMs > 0) {
             const elapsedSeconds = elapsedMs / 1000;
+            this.countryResources.treasuryGold += counts['gold-mine'] * 3.2 * elapsedSeconds;
             this.countryResources.oil += counts['oil-infrastructure'] * 2.4 * elapsedSeconds;
             this.countryResources.iron += counts['iron-mine'] * 2 * elapsedSeconds;
             this.countryResources.food += counts.farm * 2.8 * elapsedSeconds;
+            this.countryResources.armyReserve += counts['training-ground'] * 0.42 * elapsedSeconds;
+            const strategicBonuses = this.getStrategicBonuses();
+            this.countryResources.treasuryGold += strategicBonuses.goldRate * elapsedSeconds;
+            this.countryResources.armyReserve += strategicBonuses.armyRate * elapsedSeconds;
+            this.countryResources.oil += strategicBonuses.oilRate * elapsedSeconds;
+            this.countryResources.iron += strategicBonuses.ironRate * elapsedSeconds;
+            this.countryResources.food += strategicBonuses.foodRate * elapsedSeconds;
 
             const storageCapacity = this.getTankStorageCapacity();
             this.countryResources.storedTanks = Math.min(storageCapacity, Math.max(0, Math.floor(this.countryResources.storedTanks || 0)));
@@ -2299,10 +2562,218 @@ class Game {
         }
     }
 
+    isStrategicBattleView(editorView = false) {
+        return !editorView && this.customMapMode === 'land' && Boolean(this.activeWarTargetId);
+    }
+
+    getStrategicMapLandPolygon(width, height) {
+        const insetX = width * 0.09;
+        const insetY = height * 0.08;
+        const innerWidth = width * 0.82;
+        const innerHeight = height * 0.84;
+        const points = [
+            [0.14, 0.12],
+            [0.30, 0.04],
+            [0.52, 0.07],
+            [0.70, 0.18],
+            [0.86, 0.16],
+            [0.94, 0.34],
+            [0.90, 0.57],
+            [0.78, 0.77],
+            [0.56, 0.90],
+            [0.34, 0.88],
+            [0.16, 0.75],
+            [0.07, 0.55],
+            [0.09, 0.31]
+        ];
+
+        return points.map(([x, y]) => ({
+            x: insetX + (innerWidth * x),
+            y: insetY + (innerHeight * y)
+        }));
+    }
+
+    tracePolygon(ctx, points) {
+        if (!points.length) return;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.closePath();
+    }
+
+    getStrategicMapPoint(xRatio, yRatio, width, height) {
+        return {
+            x: xRatio * width,
+            y: yRatio * height
+        };
+    }
+
+    getStrategicPlayerAnchor(width, height) {
+        return this.selectedCountrySide === 'right'
+            ? this.getStrategicMapPoint(0.58, 0.50, width, height)
+            : this.getStrategicMapPoint(0.42, 0.50, width, height);
+    }
+
+    drawStrategicInfrastructureMarker(ctx, obj, width, height) {
+        const point = this.getStrategicMapPoint(obj.x, obj.y, width, height);
+        const palette = {
+            'oil-infrastructure': { fill: '#323841', stroke: '#d9e1ea', label: 'OIL' },
+            'gold-mine': { fill: '#70551f', stroke: '#f0d078', label: 'GOLD' },
+            'iron-mine': { fill: '#526167', stroke: '#cad7db', label: 'IRON' },
+            farm: { fill: '#5f7438', stroke: '#d7e6a2', label: 'FARM' },
+            'training-ground': { fill: '#62432d', stroke: '#dfb48d', label: 'DRILL' },
+            'tank-factory': { fill: '#585d64', stroke: '#d2d5db', label: 'FACT' },
+            'tank-storage': { fill: '#5f5166', stroke: '#d2c4da', label: 'DEPOT' }
+        };
+        const style = palette[obj.type];
+        if (!style) return;
+
+        ctx.fillStyle = style.fill;
+        ctx.strokeStyle = style.stroke;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(point.x - 22, point.y - 18, 44, 36, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#f3f5da';
+        ctx.font = 'bold 10px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(style.label, point.x, point.y + 4);
+    }
+
+    drawStrategicNeighborMarker(ctx, neighbor, width, height) {
+        const point = this.getStrategicMapPoint(neighbor.x, neighbor.y, width, height);
+        const status = this.getNeighborStatus(neighbor.id);
+        const palette = {
+            neutral: { fill: 'rgba(20, 28, 35, 0.88)', stroke: 'rgba(229, 238, 210, 0.34)' },
+            allied: { fill: 'rgba(33, 82, 53, 0.92)', stroke: '#bde69d' },
+            hostile: { fill: 'rgba(108, 42, 39, 0.92)', stroke: '#f0a286' },
+            occupied: { fill: 'rgba(116, 95, 44, 0.92)', stroke: '#efd480' },
+            puppet: { fill: 'rgba(73, 70, 119, 0.92)', stroke: '#c1b5f4' },
+            annexed: { fill: 'rgba(49, 94, 63, 0.92)', stroke: '#bef0a0' }
+        };
+        const style = palette[status] || palette.neutral;
+
+        ctx.fillStyle = style.fill;
+        ctx.strokeStyle = style.stroke;
+        ctx.lineWidth = this.activeWarTargetId === neighbor.id ? 3 : 2;
+        ctx.beginPath();
+        ctx.roundRect(point.x - 44, point.y - 18, 88, 36, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#eef4d7';
+        ctx.font = 'bold 10px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(neighbor.name, point.x, point.y - 1);
+        ctx.font = '9px Segoe UI';
+        ctx.fillText(this.getNeighborStatusLabel(status), point.x, point.y + 11);
+    }
+
+    drawStrategicBattleBackground(width, height) {
+        const { ctx } = this;
+        const sea = ctx.createLinearGradient(0, 0, 0, height);
+        sea.addColorStop(0, '#1f5f7b');
+        sea.addColorStop(0.52, '#164760');
+        sea.addColorStop(1, '#0f3344');
+        ctx.fillStyle = sea;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.beginPath();
+        ctx.arc(width * 0.26, height * 0.28, Math.min(width, height) * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(width * 0.65, height * 0.44, Math.min(width, height) * 0.10, 0, Math.PI * 2);
+        ctx.fill();
+
+        const landPolygon = this.getStrategicMapLandPolygon(width, height);
+        const landGradient = ctx.createLinearGradient(width * 0.12, height * 0.10, width * 0.8, height * 0.86);
+        landGradient.addColorStop(0, '#5f8243');
+        landGradient.addColorStop(0.46, '#6e9254');
+        landGradient.addColorStop(1, '#7a8f4d');
+        ctx.fillStyle = landGradient;
+        this.tracePolygon(ctx, landPolygon);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(235, 249, 215, 0.18)';
+        ctx.lineWidth = 3;
+        this.tracePolygon(ctx, landPolygon);
+        ctx.stroke();
+
+        ctx.save();
+        this.tracePolygon(ctx, landPolygon);
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        const gridStepX = width * 0.09;
+        const gridStepY = height * 0.10;
+        for (let x = width * 0.14; x <= width * 0.88; x += gridStepX) {
+            ctx.beginPath();
+            ctx.moveTo(x, height * 0.08);
+            ctx.lineTo(x, height * 0.92);
+            ctx.stroke();
+        }
+        for (let y = height * 0.12; y <= height * 0.88; y += gridStepY) {
+            ctx.beginPath();
+            ctx.moveTo(width * 0.10, y);
+            ctx.lineTo(width * 0.91, y);
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        this.countryMapObjects.forEach(obj => this.drawStrategicInfrastructureMarker(ctx, obj, width, height));
+        this.getCountryNeighbors().forEach(neighbor => this.drawStrategicNeighborMarker(ctx, neighbor, width, height));
+
+        const warTarget = this.getActiveWarTarget();
+        if (warTarget) {
+            const playerAnchor = this.getStrategicPlayerAnchor(width, height);
+            const targetPoint = this.getStrategicMapPoint(warTarget.x, warTarget.y, width, height);
+            const frontPoint = {
+                x: (playerAnchor.x + targetPoint.x) * 0.5,
+                y: (playerAnchor.y + targetPoint.y) * 0.5
+            };
+            const pulse = 1 + (Math.sin(performance.now() / 220) * 0.08);
+
+            ctx.strokeStyle = 'rgba(255, 228, 159, 0.65)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([14, 10]);
+            ctx.beginPath();
+            ctx.moveTo(playerAnchor.x, playerAnchor.y);
+            ctx.lineTo(targetPoint.x, targetPoint.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = 'rgba(255, 228, 159, 0.15)';
+            ctx.beginPath();
+            ctx.arc(frontPoint.x, frontPoint.y, 46 * pulse, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255, 228, 159, 0.92)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(frontPoint.x, frontPoint.y, 34 * pulse, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff1b9';
+            ctx.font = 'bold 14px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText('ACTIVE FRONT', frontPoint.x, frontPoint.y - 48);
+        }
+    }
+
     drawBattlefieldBackground(editorView = false) {
         const { ctx } = this;
         const width = editorView ? this.canvas.width : this.getBattlefieldWidth();
         const height = editorView ? this.canvas.height : this.getBattlefieldHeight();
+
+        if (this.isStrategicBattleView(editorView)) {
+            this.drawStrategicBattleBackground(width, height);
+            return;
+        }
 
         if (this.customMapMode === 'ocean') {
             const water = ctx.createLinearGradient(0, 0, 0, height);
@@ -2402,15 +2873,8 @@ class Game {
         this.awaitingNukeTarget = false;
         this.updateNukeButton();
         this.dispatchGameEvent('gameOver', { score: this.score, result: 'defeat' });
-        document.getElementById('victory-screen').classList.add('hidden');
-        document.getElementById('game-over-screen').classList.remove('hidden');
-        document.getElementById('final-score').innerText = `${this.score} (Level ${this.campaignLevel})`;
-        document.getElementById('hud').classList.add('hidden');
-        document.getElementById('hud-actions').classList.add('hidden');
-        document.getElementById('mobile-controls-toggle').classList.add('hidden');
-        document.getElementById('controls').classList.add('hidden');
-        document.getElementById('pause-screen').classList.add('hidden');
-        document.getElementById('settings-screen').classList.add('hidden');
+        this.showEventBanner('Battle lost. Return to the country map and regroup.');
+        this.returnToCountryMapAfterBattle('defeat');
     }
 
     victory() {
@@ -2421,23 +2885,13 @@ class Game {
         this.updateNukeButton();
         this.pendingLevelAdvance = this.campaignLevel < this.maxCampaignLevels;
         this.dispatchGameEvent('gameOver', { score: this.score, result: 'victory' });
-        document.getElementById('game-over-screen').classList.add('hidden');
-        document.getElementById('victory-screen').classList.remove('hidden');
-        document.getElementById('victory-score').innerText = this.score;
-        document.getElementById('victory-title').textContent = this.pendingLevelAdvance
-            ? `Level ${this.campaignLevel} Cleared`
-            : 'Campaign Complete';
-        document.getElementById('victory-message').textContent = this.pendingLevelAdvance
-            ? `Prepare for Level ${this.campaignLevel + 1}.`
-            : `You survived all ${this.maxCampaignLevels} levels.`;
-        document.getElementById('victory-restart-btn').textContent = this.pendingLevelAdvance ? 'Next Level' : 'Play Again';
-        document.getElementById('victory-restart-btn').classList.remove('hidden');
-        document.getElementById('hud').classList.add('hidden');
-        document.getElementById('hud-actions').classList.add('hidden');
-        document.getElementById('mobile-controls-toggle').classList.add('hidden');
-        document.getElementById('controls').classList.add('hidden');
-        document.getElementById('pause-screen').classList.add('hidden');
-        document.getElementById('settings-screen').classList.add('hidden');
+        if (this.activeWarTargetId) {
+            const neighbor = this.getNeighborById(this.activeWarTargetId);
+            this.showEventBanner(`${neighbor ? neighbor.name : 'Enemy country'} defeated. Decide its fate on the country map.`);
+        } else {
+            this.showEventBanner('Battle won. Return to the country map.');
+        }
+        this.returnToCountryMapAfterBattle('victory');
     }
 
     setUnitType(type) {
@@ -2860,6 +3314,9 @@ window.addEventListener('load', () => {
     const countryMapToolButtons = document.querySelectorAll('[data-country-tool]');
     const countryAllyBtn = document.getElementById('country-ally-btn');
     const countryAttackBtn = document.getElementById('country-attack-btn');
+    const countryOccupyBtn = document.getElementById('country-occupy-btn');
+    const countryAnnexBtn = document.getElementById('country-annex-btn');
+    const countryPuppetBtn = document.getElementById('country-puppet-btn');
     let lobbyReturnScreen = 'start';
     let pausedForPortraitMode = false;
 
@@ -3088,7 +3545,25 @@ window.addEventListener('load', () => {
     });
 
     countryAttackBtn.addEventListener('click', () => {
-        game.setNeighborStatus('hostile');
+        if (!game.prepareWarWithSelectedNeighbor()) return;
+        game.closeCountryMap();
+        if (game.playerDeck.length !== game.maxDeckSize) {
+            openDeckLobby('country-map');
+            return;
+        }
+        beginBattle(false);
+    });
+
+    countryOccupyBtn.addEventListener('click', () => {
+        game.resolveConquest('occupied');
+    });
+
+    countryAnnexBtn.addEventListener('click', () => {
+        game.resolveConquest('annexed');
+    });
+
+    countryPuppetBtn.addEventListener('click', () => {
+        game.resolveConquest('puppet');
     });
 
     countryMapToolButtons.forEach(button => {
@@ -3106,7 +3581,7 @@ window.addEventListener('load', () => {
 
     lobbyStartBtn.addEventListener('click', async () => {
         await tryLockLandscape();
-        beginBattle(true);
+        beginBattle(lobbyReturnScreen === 'country-select');
     });
 
     lobbyBackBtn.addEventListener('click', () => {
@@ -3120,6 +3595,11 @@ window.addEventListener('load', () => {
 
         if (lobbyReturnScreen === 'country-select') {
             openCountrySelect();
+            return;
+        }
+
+        if (lobbyReturnScreen === 'country-map') {
+            game.openCountryMap();
             return;
         }
 

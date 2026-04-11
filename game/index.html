@@ -22,6 +22,7 @@
             <div class="stat">Level: <span id="level-display">1</span></div>
             <div class="stat">Health: <span id="health-display">100</span></div>
             <div class="stat">Gold: <span id="gold-display">50</span></div>
+            <div class="stat">Army: <span id="army-display">0</span></div>
             <div class="stat">Oil: <span id="oil-display">0</span></div>
             <div class="stat">Iron: <span id="iron-display">0</span></div>
             <div class="stat">Food: <span id="food-display">0</span></div>
@@ -134,10 +135,21 @@
                                 <button id="country-attack-btn" class="action-btn">Attack</button>
                             </div>
                         </div>
+                        <div id="country-conquest-panel" class="country-map-stats hidden">
+                            <strong id="country-conquest-name">Victory Terms</strong>
+                            <span>Choose what to do with the defeated country.</span>
+                            <div class="country-diplomacy-actions">
+                                <button id="country-occupy-btn" class="action-btn">Occupy</button>
+                                <button id="country-annex-btn" class="action-btn">Annex</button>
+                                <button id="country-puppet-btn" class="action-btn">Puppet State</button>
+                            </div>
+                        </div>
                         <div id="country-map-tools" class="country-map-tools">
+                            <button id="country-tool-gold" class="unit-btn" data-country-tool="gold-mine">Gold Mine</button>
                             <button id="country-tool-oil" class="unit-btn selected" data-country-tool="oil-infrastructure">Oil Infrastructure</button>
                             <button id="country-tool-iron" class="unit-btn" data-country-tool="iron-mine">Iron Mine</button>
                             <button id="country-tool-farm" class="unit-btn" data-country-tool="farm">Farm</button>
+                            <button id="country-tool-training" class="unit-btn" data-country-tool="training-ground">Training Ground</button>
                             <button id="country-tool-factory" class="unit-btn" data-country-tool="tank-factory">Tank Factory</button>
                             <button id="country-tool-storage" class="unit-btn" data-country-tool="tank-storage">Tank Storage</button>
                             <button id="country-tool-erase" class="unit-btn" data-country-tool="erase">Erase</button>

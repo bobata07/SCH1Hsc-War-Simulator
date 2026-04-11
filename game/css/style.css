@@ -594,6 +594,21 @@ p {
     border-color: #f0a286;
 }
 
+.country-neighbor.occupied {
+    background: rgba(116, 95, 44, 0.94);
+    border-color: #efd480;
+}
+
+.country-neighbor.puppet {
+    background: rgba(73, 70, 119, 0.94);
+    border-color: #c1b5f4;
+}
+
+.country-neighbor.annexed {
+    background: rgba(49, 94, 63, 0.94);
+    border-color: #bef0a0;
+}
+
 .country-neighbor.selected {
     transform: translateY(-2px);
     box-shadow: 0 14px 26px rgba(0, 0, 0, 0.34);
@@ -603,12 +618,20 @@ p {
     background: linear-gradient(145deg, #424850, #2d3138);
 }
 
+.country-structure.gold-mine {
+    background: linear-gradient(145deg, #8f7234, #5f4b1f);
+}
+
 .country-structure.iron-mine {
     background: linear-gradient(145deg, #5d6b6f, #434e52);
 }
 
 .country-structure.farm {
     background: linear-gradient(145deg, #758944, #556834);
+}
+
+.country-structure.training-ground {
+    background: linear-gradient(145deg, #6a4b33, #4a3323);
 }
 
 .country-structure.tank-factory {
