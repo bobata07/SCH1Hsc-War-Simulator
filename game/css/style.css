@@ -431,31 +431,39 @@ p {
 }
 
 #country-map-screen {
-    padding: 28px 18px;
+    padding: 24px 6px;
     overflow-y: auto;
     align-items: stretch;
     background:
-        radial-gradient(circle at top, rgba(86, 126, 85, 0.28), transparent 40%),
-        linear-gradient(180deg, rgba(7, 14, 18, 0.95), rgba(6, 10, 14, 0.97));
+        radial-gradient(circle at 20% 10%, rgba(198, 185, 122, 0.14), transparent 24%),
+        radial-gradient(circle at 80% 18%, rgba(81, 124, 148, 0.18), transparent 28%),
+        linear-gradient(180deg, rgba(9, 16, 20, 0.96), rgba(5, 9, 12, 0.98));
 }
 
 .country-map-shell {
-    width: min(1180px, 100%);
+    width: min(1560px, calc(100vw - 12px));
     margin: auto;
-    padding: 24px;
+    padding: 14px;
+    max-height: calc(100vh - 12px);
+    overflow: auto;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 18px;
-    background: rgba(12, 20, 26, 0.9);
+    background:
+        linear-gradient(180deg, rgba(33, 41, 32, 0.08), transparent 18%),
+        linear-gradient(160deg, rgba(12, 20, 26, 0.96), rgba(16, 23, 29, 0.94));
+    box-shadow: 0 28px 60px rgba(0, 0, 0, 0.42);
 }
 
 .country-map-header p {
     margin-bottom: 18px;
+    color: #d5e0d0;
 }
 
 .country-map-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
-    gap: 18px;
+    grid-template-columns: minmax(0, 3.05fr) minmax(210px, 0.55fr);
+    gap: 12px;
+    align-items: start;
 }
 
 .country-map-panel {
@@ -465,14 +473,19 @@ p {
 .country-map-board {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.4 / 1;
-    border: 2px solid rgba(231, 242, 218, 0.24);
-    border-radius: 8px;
+    aspect-ratio: 2.08 / 1;
+    border: 2px solid rgba(224, 216, 176, 0.34);
+    border-radius: 16px;
     overflow: hidden;
     background:
-        radial-gradient(circle at 26% 28%, rgba(255, 255, 255, 0.08), transparent 12%),
-        radial-gradient(circle at 65% 44%, rgba(255, 255, 255, 0.06), transparent 10%),
-        linear-gradient(180deg, #1f5f7b 0%, #164760 52%, #0f3344 100%);
+        radial-gradient(circle at 26% 28%, rgba(255, 255, 255, 0.09), transparent 12%),
+        radial-gradient(circle at 65% 44%, rgba(255, 255, 255, 0.08), transparent 10%),
+        radial-gradient(circle at 72% 78%, rgba(255, 255, 255, 0.08), transparent 12%),
+        linear-gradient(180deg, #305f71 0%, #1f475b 40%, #112d3e 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -18px 40px rgba(0, 0, 0, 0.16),
+        0 20px 40px rgba(0, 0, 0, 0.28);
 }
 
 .country-region-overlay {
@@ -486,34 +499,160 @@ p {
 
 .country-region-path {
     paint-order: stroke fill;
+    stroke-linejoin: round;
+}
+
+.country-region-shadow {
+    fill: rgba(8, 12, 9, 0.18);
+    transform: translate(0px, 10px);
+    filter: url(#region-shadow);
+}
+
+.country-region-texture {
+    opacity: 0.34;
+    mix-blend-mode: soft-light;
+}
+
+.country-region-status-glaze {
+    opacity: 0.72;
+}
+
+.country-region-path.hostile {
+    stroke-dasharray: 12 7;
+}
+
+.country-region-path.allied,
+.country-region-path.annexed {
+    filter: drop-shadow(0 0 8px rgba(202, 238, 160, 0.22));
+}
+
+.country-region-contour {
+    fill: none;
+    stroke: rgba(255, 248, 227, 0.12);
+    stroke-width: 1.5;
+    pointer-events: none;
+}
+
+.country-map-road {
+    fill: none;
+    stroke: rgba(90, 68, 49, 0.44);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 1 14;
+}
+
+.country-map-river-shadow {
+    fill: none;
+    stroke: rgba(2, 18, 27, 0.28);
+    stroke-width: 13;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.country-map-river {
+    fill: none;
+    stroke: rgba(141, 212, 236, 0.82);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.country-region-capital-ring {
+    fill: rgba(253, 244, 197, 0.2);
+    stroke: rgba(255, 239, 181, 0.88);
+    stroke-width: 2;
+}
+
+.country-region-capital-core {
+    fill: #fff4c8;
+}
+
+.country-region-capital-mark {
+    fill: none;
+    stroke: rgba(255, 239, 181, 0.86);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.country-region-town {
+    fill: rgba(232, 240, 218, 0.9);
+    stroke: rgba(44, 49, 43, 0.55);
+    stroke-width: 1.5;
 }
 
 .country-region-label {
-    font: 700 21px "Segoe UI", sans-serif;
-    letter-spacing: 0;
+    font: 700 18px "Georgia", "Times New Roman", serif;
+    letter-spacing: 0.02em;
+    paint-order: stroke fill;
+    stroke: rgba(12, 16, 14, 0.65);
+    stroke-width: 4px;
     pointer-events: none;
+}
+
+.country-region-subtitle {
+    font: 600 9px "Segoe UI", sans-serif;
+    fill: rgba(242, 244, 229, 0.78);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    paint-order: stroke fill;
+    stroke: rgba(14, 19, 16, 0.5);
+    stroke-width: 3px;
+    pointer-events: none;
+}
+
+.country-map-compass-ring {
+    fill: rgba(10, 18, 23, 0.42);
+    stroke: rgba(238, 224, 182, 0.68);
+    stroke-width: 2;
+}
+
+.country-map-compass-needle {
+    fill: rgba(245, 232, 179, 0.9);
+}
+
+.country-map-compass-cross {
+    fill: rgba(154, 127, 85, 0.72);
+}
+
+.country-map-compass-text,
+.country-map-scale-text {
+    font: 700 13px "Segoe UI", sans-serif;
+    fill: rgba(246, 238, 211, 0.88);
+    letter-spacing: 0.14em;
+}
+
+.country-map-scale-bar {
+    fill: rgba(239, 233, 211, 0.82);
+}
+
+.country-map-scale-bar-alt {
+    fill: rgba(58, 64, 59, 0.85);
 }
 
 .country-map-board::before {
     content: "";
     position: absolute;
-    inset: 8% 9%;
-    clip-path: polygon(14% 12%, 30% 4%, 52% 7%, 70% 18%, 86% 16%, 94% 34%, 90% 57%, 78% 77%, 56% 90%, 34% 88%, 16% 75%, 7% 55%, 9% 31%);
-    background: linear-gradient(145deg, #5f8243 0%, #6e9254 46%, #7a8f4d 100%);
-    box-shadow: inset 0 0 0 2px rgba(235, 249, 215, 0.16);
+    inset: 0;
+    background:
+        radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.12), transparent 6%),
+        radial-gradient(circle at 74% 28%, rgba(255, 255, 255, 0.1), transparent 7%),
+        radial-gradient(circle at 42% 72%, rgba(255, 255, 255, 0.08), transparent 9%),
+        radial-gradient(circle at center, transparent 56%, rgba(4, 7, 9, 0.24) 100%);
+    pointer-events: none;
 }
 
 .country-map-board::after {
     content: "";
     position: absolute;
-    inset: 12% 14%;
+    inset: 10px;
     background-image:
-        linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-    background-size: 12% 12%;
-    opacity: 0.4;
-    clip-path: polygon(12% 13%, 28% 5%, 49% 8%, 67% 20%, 83% 18%, 90% 34%, 86% 56%, 75% 75%, 55% 87%, 35% 85%, 18% 74%, 10% 55%, 10% 32%);
+        linear-gradient(rgba(255, 247, 212, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 247, 212, 0.06) 1px, transparent 1px);
+    background-size: 80px 80px;
+    opacity: 0.55;
     pointer-events: none;
+    border: 1px solid rgba(255, 247, 212, 0.08);
+    border-radius: 12px;
 }
 
 .country-map-sidebar {
@@ -526,8 +665,11 @@ p {
 .country-map-tools {
     padding: 14px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    background: rgba(21, 29, 35, 0.92);
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 18%),
+        rgba(21, 29, 35, 0.94);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .country-map-stats {
@@ -536,8 +678,14 @@ p {
     font-size: 0.96rem;
 }
 
+.country-map-stats strong {
+    font-size: 1rem;
+    color: #f1eecf;
+}
+
 .country-map-tools {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -555,53 +703,115 @@ p {
 
 .country-structure {
     position: absolute;
-    width: 52px;
-    height: 52px;
-    margin-left: -26px;
-    margin-top: -26px;
-    border-radius: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.18);
+    width: 58px;
+    min-height: 58px;
+    margin-left: -29px;
+    margin-top: -29px;
+    padding: 6px 4px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 0.66rem;
+    gap: 4px;
+    font-size: 0.58rem;
     font-weight: 700;
     color: #f3f5da;
     text-align: center;
     line-height: 1.1;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+    box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     pointer-events: none;
-    z-index: 2;
+    z-index: 4;
+    backdrop-filter: blur(3px);
+}
+
+.country-structure-badge {
+    min-width: 30px;
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: rgba(10, 14, 16, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 0.5rem;
+    letter-spacing: 0.12em;
+}
+
+.country-structure-label {
+    max-width: 44px;
+    font-size: 0.52rem;
+    color: #f7f4df;
 }
 
 .country-neighbor {
     position: absolute;
-    width: 88px;
-    min-height: 48px;
-    margin-left: -44px;
-    margin-top: -24px;
-    padding: 8px 10px;
-    border: 2px solid rgba(255, 255, 255, 0.24);
-    border-radius: 8px;
-    background: rgba(20, 28, 35, 0.9);
+    width: 96px;
+    min-height: 56px;
+    margin-left: -48px;
+    margin-top: -28px;
+    padding: 7px 8px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 30%),
+        rgba(20, 28, 35, 0.9);
     color: #eef4d7;
     font: inherit;
-    font-size: 0.74rem;
+    font-size: 0.68rem;
     font-weight: 700;
     line-height: 1.15;
     text-align: center;
     cursor: pointer;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+    box-shadow:
+        0 14px 24px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     pointer-events: auto;
-    z-index: 3;
+    z-index: 5;
+    transition: transform 0.14s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.country-neighbor::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -12px;
+    width: 2px;
+    height: 12px;
+    background: rgba(235, 239, 223, 0.28);
+    transform: translateX(-50%);
+}
+
+.country-neighbor::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -18px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(238, 241, 224, 0.86);
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 4px rgba(9, 16, 20, 0.2);
+}
+
+.country-neighbor:hover {
+    transform: translateY(-3px);
+}
+
+.country-neighbor-name {
+    display: block;
+    font-size: 0.74rem;
+    color: #fff8d9;
 }
 
 .country-neighbor small {
     display: block;
     margin-top: 4px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    opacity: 0.86;
+    font-size: 0.53rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    opacity: 0.82;
 }
 
 .country-neighbor.neutral {
@@ -639,31 +849,47 @@ p {
 }
 
 .country-structure.oil-infrastructure {
-    background: linear-gradient(145deg, #424850, #2d3138);
+    background: linear-gradient(145deg, rgba(66, 72, 80, 0.96), rgba(45, 49, 56, 0.96));
 }
 
 .country-structure.gold-mine {
-    background: linear-gradient(145deg, #8f7234, #5f4b1f);
+    background: linear-gradient(145deg, rgba(143, 114, 52, 0.96), rgba(95, 75, 31, 0.96));
 }
 
 .country-structure.iron-mine {
-    background: linear-gradient(145deg, #5d6b6f, #434e52);
+    background: linear-gradient(145deg, rgba(93, 107, 111, 0.96), rgba(67, 78, 82, 0.96));
 }
 
 .country-structure.farm {
-    background: linear-gradient(145deg, #758944, #556834);
+    background: linear-gradient(145deg, rgba(117, 137, 68, 0.96), rgba(85, 104, 52, 0.96));
 }
 
 .country-structure.training-ground {
-    background: linear-gradient(145deg, #6a4b33, #4a3323);
+    background: linear-gradient(145deg, rgba(106, 75, 51, 0.96), rgba(74, 51, 35, 0.96));
 }
 
 .country-structure.tank-factory {
-    background: linear-gradient(145deg, #696d73, #44484d);
+    background: linear-gradient(145deg, rgba(105, 109, 115, 0.96), rgba(68, 72, 77, 0.96));
 }
 
 .country-structure.tank-storage {
-    background: linear-gradient(145deg, #6d5d73, #493f50);
+    background: linear-gradient(145deg, rgba(109, 93, 115, 0.96), rgba(73, 63, 80, 0.96));
+}
+
+.country-structure.refinery {
+    background: linear-gradient(145deg, rgba(97, 69, 60, 0.96), rgba(64, 46, 43, 0.96));
+}
+
+.country-structure.military-academy {
+    background: linear-gradient(145deg, rgba(72, 90, 112, 0.96), rgba(48, 60, 77, 0.96));
+}
+
+.country-structure.rail-hub {
+    background: linear-gradient(145deg, rgba(110, 95, 56, 0.96), rgba(75, 63, 35, 0.96));
+}
+
+.country-structure.research-lab {
+    background: linear-gradient(145deg, rgba(66, 101, 110, 0.96), rgba(45, 69, 77, 0.96));
 }
 
 .lobby-shell {
@@ -981,7 +1207,11 @@ p {
     }
 
     .country-map-shell {
-        padding: 14px;
+        padding: 10px;
+    }
+
+    #country-map-screen {
+        padding: 14px 4px;
     }
 
     .country-map-grid {
@@ -992,6 +1222,45 @@ p {
     .country-map-stats,
     .country-map-tools {
         padding: 12px;
+    }
+
+    .country-map-board {
+        border-radius: 12px;
+    }
+
+    .country-neighbor {
+        width: 112px;
+        min-height: 66px;
+        margin-left: -56px;
+        margin-top: -33px;
+        padding: 8px 8px 10px;
+    }
+
+    .country-neighbor-name {
+        font-size: 0.78rem;
+    }
+
+    .country-neighbor small {
+        font-size: 0.58rem;
+    }
+
+    .country-structure {
+        width: 62px;
+        min-height: 62px;
+        margin-left: -31px;
+        margin-top: -31px;
+        padding: 6px 5px;
+        gap: 4px;
+    }
+
+    .country-structure-badge {
+        min-width: 36px;
+        font-size: 0.56rem;
+    }
+
+    .country-structure-label {
+        max-width: 48px;
+        font-size: 0.56rem;
     }
 
     .deck-lobby-grid {

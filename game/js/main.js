@@ -171,24 +171,24 @@ class Game {
                 home: {
                     id: 'home',
                     name: 'Right Country',
-                    points: [[0.34, 0.34], [0.42, 0.24], [0.64, 0.28], [0.72, 0.50], [0.56, 0.70], [0.38, 0.58]]
+                    points: [[0.25, 0.32], [0.37, 0.18], [0.69, 0.22], [0.80, 0.50], [0.61, 0.80], [0.29, 0.64]]
                 },
                 neighbors: {
-                    'north-federation': [[0.14, 0.12], [0.30, 0.04], [0.52, 0.07], [0.70, 0.18], [0.64, 0.28], [0.42, 0.24], [0.34, 0.34], [0.09, 0.31]],
-                    'coastal-union': [[0.64, 0.28], [0.86, 0.16], [0.94, 0.34], [0.90, 0.57], [0.78, 0.77], [0.72, 0.50]],
-                    'southern-league': [[0.38, 0.58], [0.56, 0.70], [0.78, 0.77], [0.56, 0.90], [0.34, 0.88], [0.16, 0.75], [0.07, 0.55]]
+                    'north-federation': [[0.14, 0.12], [0.30, 0.04], [0.52, 0.07], [0.70, 0.18], [0.69, 0.22], [0.37, 0.18], [0.25, 0.32], [0.09, 0.31]],
+                    'coastal-union': [[0.69, 0.22], [0.86, 0.16], [0.94, 0.34], [0.90, 0.57], [0.78, 0.77], [0.80, 0.50]],
+                    'southern-league': [[0.29, 0.64], [0.61, 0.80], [0.78, 0.77], [0.56, 0.90], [0.34, 0.88], [0.16, 0.75], [0.07, 0.55]]
                 }
             },
             left: {
                 home: {
                     id: 'home',
                     name: 'Left Country',
-                    points: [[0.22, 0.34], [0.34, 0.22], [0.56, 0.24], [0.64, 0.46], [0.46, 0.68], [0.24, 0.58]]
+                    points: [[0.20, 0.32], [0.32, 0.18], [0.65, 0.22], [0.76, 0.50], [0.57, 0.80], [0.23, 0.64]]
                 },
                 neighbors: {
-                    'ridge-republic': [[0.14, 0.12], [0.30, 0.04], [0.52, 0.07], [0.70, 0.18], [0.56, 0.24], [0.34, 0.22], [0.22, 0.34], [0.09, 0.31]],
-                    'western-pact': [[0.09, 0.31], [0.22, 0.34], [0.24, 0.58], [0.16, 0.75], [0.07, 0.55]],
-                    'sun-coast': [[0.24, 0.58], [0.46, 0.68], [0.56, 0.90], [0.34, 0.88], [0.16, 0.75]]
+                    'ridge-republic': [[0.14, 0.12], [0.30, 0.04], [0.52, 0.07], [0.70, 0.18], [0.65, 0.22], [0.32, 0.18], [0.20, 0.32], [0.09, 0.31]],
+                    'western-pact': [[0.09, 0.31], [0.20, 0.32], [0.23, 0.64], [0.16, 0.75], [0.07, 0.55]],
+                    'sun-coast': [[0.23, 0.64], [0.57, 0.80], [0.56, 0.90], [0.34, 0.88], [0.16, 0.75]]
                 }
             }
         };
@@ -1067,6 +1067,11 @@ class Game {
         this.soldiers.forEach(s => s.update(hostileUnits, friendlyMovers, this.bunkers, fieldWidth, fieldHeight));
         this.soldiers = this.soldiers.filter(s => !s.markedForDeletion);
 
+        if (this.isPlaying && !this.enemyDefeated && this.hasPlayerSoldierReachedEnemyCenter()) {
+            this.victory();
+            return;
+        }
+
         // Update Tanks
         this.tanks.forEach(t => t.update(hostileUnits, friendlyMovers, fieldWidth, fieldHeight));
         for (let i = this.tanks.length - 1; i >= 0; i--) {
@@ -1322,6 +1327,76 @@ class Game {
         return healthRatio * durability * rangeBoost;
     }
 
+    getStrategicFriendlyFrontUnits() {
+        return [
+            ...this.soldiers,
+            ...this.tanks,
+            ...this.planes,
+            ...this.bulldozers,
+            ...this.snipers,
+            ...this.artilleryUnits,
+            ...this.drones,
+            ...this.kamikazeTrains,
+            ...this.bunkers,
+            ...this.towers,
+            ...this.spawnTowers,
+            ...this.tankSpawnTowers,
+            ...this.barbedWires,
+            ...this.trenches,
+            ...this.airDefenses,
+            ...this.rocketStations,
+            ...this.nuclearLaunchers
+        ].filter(unit => unit && !unit.markedForDeletion);
+    }
+
+    getStrategicHostileFrontUnits() {
+        return [
+            ...this.enemies,
+            ...this.enemyArtilleryUnits,
+            ...this.enemySnipers,
+            ...this.enemyTanks,
+            ...this.enemyPlanes,
+            ...this.enemyBarbedWires
+        ].filter(unit => unit && !unit.markedForDeletion);
+    }
+
+    isStrategicMobileFrontUnit(unit) {
+        return typeof unit?.moveSpeed === 'number' || typeof unit?.baseMoveSpeed === 'number';
+    }
+
+    getStrategicFrontUnitWeight(unit, side, projection) {
+        let weight = this.getTerritoryUnitWeight(unit);
+
+        if (this.isStrategicMobileFrontUnit(unit)) {
+            weight *= 1.55;
+        } else {
+            weight *= 0.46;
+        }
+
+        if (typeof unit?.range === 'number' && unit.range >= 220) {
+            weight *= 1.15;
+        }
+
+        if (
+            unit instanceof Tank
+            || unit instanceof EnemyTank
+            || unit instanceof Bunker
+            || unit instanceof KamikazeTrain
+        ) {
+            weight *= 1.22;
+        }
+
+        if (unit instanceof BarbedWire || unit instanceof Trench) {
+            weight *= 0.34;
+        }
+
+        const frontlineBias = side === 'player'
+            ? 0.72 + (projection * 1.05)
+            : 0.72 + ((1 - projection) * 1.05);
+
+        return weight * frontlineBias;
+    }
+
     getWeightedFrontEdge(samples, fallbackX, quantile) {
         if (!samples.length) return fallbackX;
 
@@ -1419,10 +1494,9 @@ class Game {
             const battleState = this.getStrategicBattleState(fieldWidth, fieldHeight);
             if (!battleState) return;
 
-            const playerColor = 'rgba(52, 138, 91, 0.24)';
-            const enemyColor = 'rgba(160, 80, 67, 0.22)';
+            const playerColor = 'rgba(52, 138, 91, 0.30)';
+            const enemyColor = 'rgba(160, 80, 67, 0.28)';
             const corridorWidth = this.getBattleCorridorHalfWidth(battleState);
-            const coreRadius = Math.max(72, Math.min(112, battleState.distance * 0.20));
             const frontHalfWidth = corridorWidth + 12;
             const battleLineX = battleState.frontPoint.x;
             const battleLineY = battleState.frontPoint.y;
@@ -1432,41 +1506,14 @@ class Game {
             const enemyRegion = this.getBattleRegionById(this.activeWarTargetId);
             const playerPolygon = playerRegion ? this.getRegionPointList(playerRegion.points, fieldWidth, fieldHeight) : [];
             const enemyPolygon = enemyRegion ? this.getRegionPointList(enemyRegion.points, fieldWidth, fieldHeight) : [];
+            const warPolygons = [playerPolygon, enemyPolygon].filter(polygon => polygon.length);
 
-            if (playerPolygon.length) {
-                this.ctx.save();
-                this.tracePolygon(this.ctx, playerPolygon);
-                this.ctx.clip();
-                this.ctx.fillStyle = playerColor;
-                this.ctx.beginPath();
-                this.ctx.arc(
-                    battleState.playerAnchor.x,
-                    battleState.playerAnchor.y,
-                    coreRadius + (battleState.playerControl * 34),
-                    0,
-                    Math.PI * 2
-                );
-                this.ctx.fill();
-                this.fillStrategicCorridor(this.ctx, battleState.playerAnchor, battleState.frontPoint, corridorWidth);
-                this.ctx.restore();
+            if (warPolygons.length) {
+                this.drawClippedTerritoryHalf(this.ctx, warPolygons, battleState, 'player', playerColor);
             }
 
-            if (enemyPolygon.length) {
-                this.ctx.save();
-                this.tracePolygon(this.ctx, enemyPolygon);
-                this.ctx.clip();
-                this.ctx.fillStyle = enemyColor;
-                this.ctx.beginPath();
-                this.ctx.arc(
-                    battleState.enemyAnchor.x,
-                    battleState.enemyAnchor.y,
-                    coreRadius + (battleState.enemyControl * 34),
-                    0,
-                    Math.PI * 2
-                );
-                this.ctx.fill();
-                this.fillStrategicCorridor(this.ctx, battleState.frontPoint, battleState.enemyAnchor, corridorWidth);
-                this.ctx.restore();
+            if (warPolygons.length) {
+                this.drawClippedTerritoryHalf(this.ctx, warPolygons, battleState, 'enemy', enemyColor);
             }
 
             this.ctx.strokeStyle = 'rgba(255, 246, 174, 0.88)';
@@ -1967,7 +2014,19 @@ class Game {
             const parsed = JSON.parse(raw);
             if (!Array.isArray(parsed)) return [];
 
-            const validTypes = new Set(['gold-mine', 'oil-infrastructure', 'iron-mine', 'farm', 'training-ground', 'tank-factory', 'tank-storage']);
+            const validTypes = new Set([
+                'gold-mine',
+                'oil-infrastructure',
+                'iron-mine',
+                'farm',
+                'training-ground',
+                'tank-factory',
+                'tank-storage',
+                'refinery',
+                'military-academy',
+                'rail-hub',
+                'research-lab'
+            ]);
             return parsed
                 .filter(obj => obj && validTypes.has(obj.type))
                 .map(obj => ({
@@ -2170,6 +2229,18 @@ class Game {
         }));
     }
 
+    getExpandedCountryRegionPointList(points, width, height) {
+        const centerX = 0.5;
+        const centerY = 0.5;
+        const scaleX = 1.14;
+        const scaleY = 1.10;
+
+        return points.map(([x, y]) => ({
+            x: Math.max(0.02, Math.min(0.98, centerX + ((x - centerX) * scaleX))) * width,
+            y: Math.max(0.03, Math.min(0.97, centerY + ((y - centerY) * scaleY))) * height
+        }));
+    }
+
     getPolygonCenter(points) {
         if (!points.length) return { x: 0, y: 0 };
         const total = points.reduce((sum, point) => ({
@@ -2200,6 +2271,107 @@ class Game {
         return inside;
     }
 
+    createSvgNode(svgNs, tagName, attributes = {}, textContent = '') {
+        const node = document.createElementNS(svgNs, tagName);
+        Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, String(value)));
+        if (textContent) node.textContent = textContent;
+        return node;
+    }
+
+    getCountryRegionTerrain(regionId) {
+        if (regionId === 'home') return 'heartland';
+        const neighbor = this.getNeighborById(regionId);
+        return neighbor?.resource || 'mixed';
+    }
+
+    getCountryRegionTerrainPalette(terrain) {
+        const palettes = {
+            heartland: { top: '#7e9f61', bottom: '#617f48', accent: '#b8cf86' },
+            oil: { top: '#6a845f', bottom: '#4c6550', accent: '#d9bb72' },
+            iron: { top: '#7d8666', bottom: '#5a624d', accent: '#c5d0dc' },
+            food: { top: '#8ea85d', bottom: '#6b8244', accent: '#eadf94' },
+            gold: { top: '#907749', bottom: '#6f5c32', accent: '#f0da8b' },
+            army: { top: '#7a6a57', bottom: '#5b4e3e', accent: '#e6c9a4' },
+            mixed: { top: '#72885d', bottom: '#596f49', accent: '#dbe7b2' }
+        };
+
+        return palettes[terrain] || palettes.mixed;
+    }
+
+    getCountryRegionTextureId(terrain) {
+        const textureByTerrain = {
+            heartland: 'texture-woods',
+            oil: 'texture-basins',
+            iron: 'texture-ridges',
+            food: 'texture-fields',
+            gold: 'texture-ridges',
+            army: 'texture-roads',
+            mixed: 'texture-woods'
+        };
+
+        return textureByTerrain[terrain] || textureByTerrain.mixed;
+    }
+
+    getCountryMapRivers() {
+        const definitions = {
+            right: [
+                [[0.20, 0.10], [0.29, 0.19], [0.39, 0.30], [0.46, 0.43], [0.50, 0.57], [0.56, 0.72], [0.68, 0.90]],
+                [[0.62, 0.06], [0.61, 0.18], [0.58, 0.32], [0.53, 0.46], [0.45, 0.61], [0.34, 0.80]]
+            ],
+            left: [
+                [[0.72, 0.08], [0.65, 0.20], [0.58, 0.33], [0.50, 0.46], [0.42, 0.62], [0.33, 0.82]],
+                [[0.31, 0.10], [0.36, 0.21], [0.41, 0.33], [0.47, 0.48], [0.56, 0.63], [0.67, 0.81], [0.76, 0.92]]
+            ]
+        };
+
+        return definitions[this.selectedCountrySide] || definitions.right;
+    }
+
+    getCountryMapTownPoints(region, width, height) {
+        const points = this.getRegionPointList(region.points, width, height);
+        const center = this.getPolygonCenter(points);
+        const indexSet = new Set([1, Math.floor(points.length / 2), Math.max(0, points.length - 2)]);
+
+        return [...indexSet]
+            .map(index => points[index])
+            .filter(Boolean)
+            .map((point, index) => ({
+                x: center.x + ((point.x - center.x) * (0.36 + (index * 0.08))),
+                y: center.y + ((point.y - center.y) * (0.36 + (index * 0.08)))
+            }));
+    }
+
+    getCountryMapMarkerCode(type) {
+        const codes = {
+            'gold-mine': 'AU',
+            'oil-infrastructure': 'OIL',
+            'iron-mine': 'FE',
+            farm: 'AG',
+            'training-ground': 'DRL',
+            'tank-factory': 'ARM',
+            'tank-storage': 'DEP',
+            refinery: 'REF',
+            'military-academy': 'ACD',
+            'rail-hub': 'RAIL',
+            'research-lab': 'LAB'
+        };
+
+        return codes[type] || 'SITE';
+    }
+
+    getNeighborResourceLabel(neighborId) {
+        const neighbor = this.getNeighborById(neighborId);
+        const labels = {
+            oil: 'Oil basin',
+            iron: 'Iron belt',
+            food: 'Breadbasket',
+            gold: 'Gold fields',
+            army: 'Recruiting zone'
+        };
+
+        return labels[neighbor?.resource] || 'Mixed resources';
+    }
+
     renderCountryRegionMap(board) {
         if (!board) return;
 
@@ -2208,27 +2380,243 @@ class Game {
         overlay.setAttribute('viewBox', '0 0 1000 700');
         overlay.setAttribute('aria-hidden', 'true');
         overlay.classList.add('country-region-overlay');
-
-        this.getCountryRegionRenderEntries().forEach(region => {
-            const palette = this.getCountryRegionPalette(region.status);
-            const polygon = document.createElementNS(svgNs, 'polygon');
-            polygon.setAttribute('points', region.points.map(([x, y]) => `${x * 1000},${y * 700}`).join(' '));
-            polygon.setAttribute('fill', palette.fill);
-            polygon.setAttribute('stroke', palette.stroke);
-            polygon.setAttribute('stroke-width', region.status === 'annexed' ? '5' : '3');
-            polygon.classList.add('country-region-path');
-            overlay.appendChild(polygon);
-
-            const center = this.getPolygonCenter(this.getRegionPointList(region.points, 1000, 700));
-            const label = document.createElementNS(svgNs, 'text');
-            label.setAttribute('x', String(center.x));
-            label.setAttribute('y', String(center.y));
-            label.setAttribute('fill', palette.label);
-            label.setAttribute('text-anchor', 'middle');
-            label.classList.add('country-region-label');
-            label.textContent = region.name;
-            overlay.appendChild(label);
+        const defs = this.createSvgNode(svgNs, 'defs');
+        defs.appendChild(this.createSvgNode(svgNs, 'filter', { id: 'region-shadow', x: '-20%', y: '-20%', width: '140%', height: '140%' }));
+        defs.lastChild.appendChild(this.createSvgNode(svgNs, 'feDropShadow', {
+            dx: '0',
+            dy: '14',
+            stdDeviation: '14',
+            'flood-color': 'rgba(0, 0, 0, 0.34)'
+        }));
+        defs.appendChild(this.createSvgNode(svgNs, 'pattern', {
+            id: 'texture-fields',
+            width: '28',
+            height: '28',
+            patternUnits: 'userSpaceOnUse',
+            patternTransform: 'rotate(12)'
+        }));
+        defs.lastChild.appendChild(this.createSvgNode(svgNs, 'path', {
+            d: 'M 0 10 L 28 10 M 0 20 L 28 20',
+            stroke: 'rgba(255,255,255,0.18)',
+            'stroke-width': '2',
+            'stroke-linecap': 'round'
+        }));
+        defs.appendChild(this.createSvgNode(svgNs, 'pattern', {
+            id: 'texture-ridges',
+            width: '36',
+            height: '36',
+            patternUnits: 'userSpaceOnUse',
+            patternTransform: 'rotate(-24)'
+        }));
+        defs.lastChild.appendChild(this.createSvgNode(svgNs, 'path', {
+            d: 'M 6 0 L 6 36 M 18 0 L 18 36 M 30 0 L 30 36',
+            stroke: 'rgba(255,255,255,0.14)',
+            'stroke-width': '3'
+        }));
+        defs.appendChild(this.createSvgNode(svgNs, 'pattern', {
+            id: 'texture-basins',
+            width: '48',
+            height: '48',
+            patternUnits: 'userSpaceOnUse'
+        }));
+        ['12,14,6', '34,12,8', '20,34,7'].forEach(definition => {
+            const [cx, cy, radius] = definition.split(',');
+            defs.lastChild.appendChild(this.createSvgNode(svgNs, 'circle', {
+                cx,
+                cy,
+                r: radius,
+                fill: 'none',
+                stroke: 'rgba(255,255,255,0.12)',
+                'stroke-width': '2'
+            }));
         });
+        defs.appendChild(this.createSvgNode(svgNs, 'pattern', {
+            id: 'texture-woods',
+            width: '34',
+            height: '34',
+            patternUnits: 'userSpaceOnUse'
+        }));
+        [
+            { cx: 8, cy: 12, r: 3.5 },
+            { cx: 20, cy: 18, r: 4.2 },
+            { cx: 14, cy: 28, r: 3.2 },
+            { cx: 28, cy: 9, r: 2.8 }
+        ].forEach(dot => {
+            defs.lastChild.appendChild(this.createSvgNode(svgNs, 'circle', {
+                cx: dot.cx,
+                cy: dot.cy,
+                r: dot.r,
+                fill: 'rgba(255,255,255,0.12)'
+            }));
+        });
+        defs.appendChild(this.createSvgNode(svgNs, 'pattern', {
+            id: 'texture-roads',
+            width: '44',
+            height: '44',
+            patternUnits: 'userSpaceOnUse',
+            patternTransform: 'rotate(18)'
+        }));
+        defs.lastChild.appendChild(this.createSvgNode(svgNs, 'path', {
+            d: 'M 0 14 L 44 14 M 0 30 L 44 30',
+            stroke: 'rgba(255,255,255,0.11)',
+            'stroke-width': '4',
+            'stroke-dasharray': '1 9'
+        }));
+        overlay.appendChild(defs);
+
+        const regions = this.getCountryRegionRenderEntries();
+        const regionLookup = new Map();
+        regions.forEach(region => {
+            const points = this.getExpandedCountryRegionPointList(region.points, 1000, 700);
+            regionLookup.set(region.id, {
+                region,
+                points,
+                center: this.getPolygonCenter(points)
+            });
+        });
+
+        const routesLayer = this.createSvgNode(svgNs, 'g', { class: 'country-map-routes' });
+        const homeRegion = regionLookup.get('home');
+        if (homeRegion) {
+            this.getCountryNeighbors().forEach(neighbor => {
+                const targetRegion = regionLookup.get(neighbor.id);
+                if (!targetRegion) return;
+                const controlX = (homeRegion.center.x + targetRegion.center.x) * 0.5;
+                const controlY = (homeRegion.center.y + targetRegion.center.y) * 0.5 + ((targetRegion.center.y - homeRegion.center.y) * 0.12);
+                routesLayer.appendChild(this.createSvgNode(svgNs, 'path', {
+                    d: `M ${homeRegion.center.x} ${homeRegion.center.y} Q ${controlX} ${controlY} ${targetRegion.center.x} ${targetRegion.center.y}`,
+                    class: 'country-map-road'
+                }));
+            });
+        }
+        overlay.appendChild(routesLayer);
+
+        const riversLayer = this.createSvgNode(svgNs, 'g', { class: 'country-map-rivers' });
+        this.getCountryMapRivers().forEach(points => {
+            const path = points
+                .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x * 1000} ${y * 700}`)
+                .join(' ');
+            riversLayer.appendChild(this.createSvgNode(svgNs, 'path', { d: path, class: 'country-map-river-shadow' }));
+            riversLayer.appendChild(this.createSvgNode(svgNs, 'path', { d: path, class: 'country-map-river' }));
+        });
+        overlay.appendChild(riversLayer);
+
+        regions.forEach(region => {
+            const palette = this.getCountryRegionPalette(region.status);
+            const terrain = this.getCountryRegionTerrain(region.id);
+            const terrainPalette = this.getCountryRegionTerrainPalette(terrain);
+            const gradientId = `country-region-gradient-${region.id}`;
+            const gradient = this.createSvgNode(svgNs, 'linearGradient', {
+                id: gradientId,
+                x1: '0%',
+                y1: '0%',
+                x2: '100%',
+                y2: '100%'
+            });
+            gradient.appendChild(this.createSvgNode(svgNs, 'stop', { offset: '0%', 'stop-color': terrainPalette.top }));
+            gradient.appendChild(this.createSvgNode(svgNs, 'stop', { offset: '70%', 'stop-color': terrainPalette.bottom }));
+            gradient.appendChild(this.createSvgNode(svgNs, 'stop', { offset: '100%', 'stop-color': '#405139' }));
+            defs.appendChild(gradient);
+
+            const pointString = region.points.map(([x, y]) => `${x * 1000},${y * 700}`).join(' ');
+            const regionPoints = regionLookup.get(region.id)?.points || [];
+            const center = regionLookup.get(region.id)?.center || this.getPolygonCenter(this.getExpandedCountryRegionPointList(region.points, 1000, 700));
+            const shadowPolygon = this.createSvgNode(svgNs, 'polygon', {
+                points: pointString,
+                class: 'country-region-shadow'
+            });
+            const polygon = this.createSvgNode(svgNs, 'polygon', {
+                points: pointString,
+                fill: `url(#${gradientId})`,
+                stroke: palette.stroke,
+                'stroke-width': region.status === 'annexed' ? '5' : '3',
+                class: `country-region-path ${region.status}`
+            });
+            const terrainOverlay = this.createSvgNode(svgNs, 'polygon', {
+                points: pointString,
+                fill: `url(#${this.getCountryRegionTextureId(terrain)})`,
+                class: 'country-region-texture'
+            });
+            const statusOverlay = this.createSvgNode(svgNs, 'polygon', {
+                points: pointString,
+                fill: palette.fill,
+                class: 'country-region-status-glaze'
+            });
+
+            overlay.appendChild(shadowPolygon);
+            overlay.appendChild(polygon);
+            overlay.appendChild(terrainOverlay);
+            overlay.appendChild(statusOverlay);
+
+            [0.44, 0.62, 0.78].forEach((ratio, index) => {
+                const insetPoints = regionPoints.map(point => ({
+                    x: center.x + ((point.x - center.x) * ratio),
+                    y: center.y + ((point.y - center.y) * ratio)
+                }));
+                overlay.appendChild(this.createSvgNode(svgNs, 'polygon', {
+                    points: insetPoints.map(point => `${point.x},${point.y}`).join(' '),
+                    class: `country-region-contour contour-${index + 1}`
+                }));
+            });
+
+            const capitalGroup = this.createSvgNode(svgNs, 'g', { class: 'country-region-capital' });
+            capitalGroup.appendChild(this.createSvgNode(svgNs, 'circle', {
+                cx: center.x,
+                cy: center.y - 22,
+                r: region.id === 'home' ? 10 : 8,
+                class: 'country-region-capital-ring'
+            }));
+            capitalGroup.appendChild(this.createSvgNode(svgNs, 'circle', {
+                cx: center.x,
+                cy: center.y - 22,
+                r: region.id === 'home' ? 3.5 : 3,
+                class: 'country-region-capital-core'
+            }));
+            capitalGroup.appendChild(this.createSvgNode(svgNs, 'path', {
+                d: `M ${center.x} ${center.y - 40} L ${center.x} ${center.y - 6} M ${center.x - 10} ${center.y - 22} L ${center.x + 10} ${center.y - 22}`,
+                class: 'country-region-capital-mark'
+            }));
+            overlay.appendChild(capitalGroup);
+
+            this.getCountryMapTownPoints(region, 1000, 700).forEach(point => {
+                overlay.appendChild(this.createSvgNode(svgNs, 'circle', {
+                    cx: point.x,
+                    cy: point.y,
+                    r: 4,
+                    class: 'country-region-town'
+                }));
+            });
+
+            const label = this.createSvgNode(svgNs, 'text', {
+                x: center.x,
+                y: center.y + 10,
+                fill: palette.label,
+                'text-anchor': 'middle',
+                class: 'country-region-label'
+            }, region.name);
+            overlay.appendChild(label);
+
+            const terrainLabel = this.createSvgNode(svgNs, 'text', {
+                x: center.x,
+                y: center.y + 33,
+                'text-anchor': 'middle',
+                class: 'country-region-subtitle'
+            }, region.id === 'home' ? 'National Core' : this.getNeighborResourceLabel(region.id));
+            overlay.appendChild(terrainLabel);
+        });
+
+        const compass = this.createSvgNode(svgNs, 'g', { class: 'country-map-compass-graphic', transform: 'translate(902 118)' });
+        compass.appendChild(this.createSvgNode(svgNs, 'circle', { cx: 0, cy: 0, r: 34, class: 'country-map-compass-ring' }));
+        compass.appendChild(this.createSvgNode(svgNs, 'path', { d: 'M 0 -28 L 7 0 L 0 28 L -7 0 Z', class: 'country-map-compass-needle' }));
+        compass.appendChild(this.createSvgNode(svgNs, 'path', { d: 'M -24 0 L 0 -7 L 24 0 L 0 7 Z', class: 'country-map-compass-cross' }));
+        compass.appendChild(this.createSvgNode(svgNs, 'text', { x: 0, y: -42, 'text-anchor': 'middle', class: 'country-map-compass-text' }, 'N'));
+        overlay.appendChild(compass);
+
+        const scaleGroup = this.createSvgNode(svgNs, 'g', { class: 'country-map-scale-graphic', transform: 'translate(720 640)' });
+        scaleGroup.appendChild(this.createSvgNode(svgNs, 'rect', { x: 0, y: 0, width: 150, height: 8, rx: 4, class: 'country-map-scale-bar' }));
+        scaleGroup.appendChild(this.createSvgNode(svgNs, 'rect', { x: 0, y: 0, width: 75, height: 8, rx: 4, class: 'country-map-scale-bar country-map-scale-bar-alt' }));
+        scaleGroup.appendChild(this.createSvgNode(svgNs, 'text', { x: 75, y: -10, 'text-anchor': 'middle', class: 'country-map-scale-text' }, '150 km'));
+        overlay.appendChild(scaleGroup);
 
         board.appendChild(overlay);
     }
@@ -2236,7 +2624,7 @@ class Game {
     drawCountryRegionsOnCanvas(ctx, width, height) {
         this.getCountryRegionRenderEntries().forEach(region => {
             const palette = this.getCountryRegionPalette(region.status);
-            const points = this.getRegionPointList(region.points, width, height);
+            const points = this.getExpandedCountryRegionPointList(region.points, width, height);
             const center = this.getPolygonCenter(points);
 
             ctx.fillStyle = palette.fill;
@@ -2259,7 +2647,7 @@ class Game {
             const center = this.getPolygonCenter(points);
             const isHome = region.id === 'home';
 
-            ctx.fillStyle = isHome ? 'rgba(52, 138, 91, 0.12)' : 'rgba(160, 80, 67, 0.12)';
+            ctx.fillStyle = isHome ? 'rgba(52, 138, 91, 0.05)' : 'rgba(160, 80, 67, 0.05)';
             ctx.strokeStyle = isHome ? 'rgba(196, 241, 173, 0.9)' : 'rgba(240, 162, 134, 0.92)';
             ctx.lineWidth = 3;
             this.tracePolygon(ctx, points);
@@ -2273,6 +2661,50 @@ class Game {
         });
     }
 
+    drawClippedTerritoryHalf(ctx, polygons, battleState, side, fillStyle) {
+        if (!polygons.length) return;
+
+        const axisX = battleState.dx / battleState.distance;
+        const axisY = battleState.dy / battleState.distance;
+        const normalX = battleState.normalX;
+        const normalY = battleState.normalY;
+        const far = Math.max(this.getBattlefieldWidth(), this.getBattlefieldHeight()) * 3;
+        const direction = side === 'player' ? -1 : 1;
+
+        ctx.save();
+        ctx.beginPath();
+        polygons.forEach(polygon => {
+            if (!polygon.length) return;
+            ctx.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+                ctx.lineTo(polygon[i].x, polygon[i].y);
+            }
+            ctx.closePath();
+        });
+        ctx.clip();
+        ctx.fillStyle = fillStyle;
+        ctx.beginPath();
+        ctx.moveTo(
+            battleState.frontPoint.x + (normalX * far),
+            battleState.frontPoint.y + (normalY * far)
+        );
+        ctx.lineTo(
+            battleState.frontPoint.x - (normalX * far),
+            battleState.frontPoint.y - (normalY * far)
+        );
+        ctx.lineTo(
+            battleState.frontPoint.x - (normalX * far) + (axisX * far * direction),
+            battleState.frontPoint.y - (normalY * far) + (axisY * far * direction)
+        );
+        ctx.lineTo(
+            battleState.frontPoint.x + (normalX * far) + (axisX * far * direction),
+            battleState.frontPoint.y + (normalY * far) + (axisY * far * direction)
+        );
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
     getStrategicBonuses() {
         const bonuses = {
             oilRate: 0,
@@ -2283,6 +2715,16 @@ class Game {
             storageBonus: 0,
             startingGoldBonus: 0
         };
+        const counts = this.getCountryMapCounts();
+
+        bonuses.goldRate += counts.refinery * 0.6;
+        bonuses.oilRate += counts.refinery * 1.35;
+        bonuses.armyRate += counts['military-academy'] * 0.26;
+        bonuses.startingGoldBonus += counts['military-academy'] * 90;
+        bonuses.goldRate += counts['rail-hub'] * 0.8;
+        bonuses.storageBonus += counts['rail-hub'] * 1;
+        bonuses.ironRate += counts['research-lab'] * 0.45;
+        bonuses.startingGoldBonus += counts['research-lab'] * 65;
 
         this.getCountryNeighbors().forEach(neighbor => {
             const status = this.getNeighborStatus(neighbor.id);
@@ -2439,7 +2881,11 @@ class Game {
             farm: 0,
             'training-ground': 0,
             'tank-factory': 0,
-            'tank-storage': 0
+            'tank-storage': 0,
+            refinery: 0,
+            'military-academy': 0,
+            'rail-hub': 0,
+            'research-lab': 0
         };
 
         this.countryMapObjects.forEach(obj => {
@@ -2459,14 +2905,31 @@ class Game {
             farm: 'Farm',
             'training-ground': 'Drill',
             'tank-factory': 'Factory',
-            'tank-storage': 'Depot'
+            'tank-storage': 'Depot',
+            refinery: 'Refinery',
+            'military-academy': 'Academy',
+            'rail-hub': 'Rail Hub',
+            'research-lab': 'Research'
         };
 
         return labels[type] || 'Site';
     }
 
     setCountryMapTool(type) {
-        const validTypes = new Set(['gold-mine', 'oil-infrastructure', 'iron-mine', 'farm', 'training-ground', 'tank-factory', 'tank-storage', 'erase']);
+        const validTypes = new Set([
+            'gold-mine',
+            'oil-infrastructure',
+            'iron-mine',
+            'farm',
+            'training-ground',
+            'tank-factory',
+            'tank-storage',
+            'refinery',
+            'military-academy',
+            'rail-hub',
+            'research-lab',
+            'erase'
+        ]);
         this.countryMapTool = validTypes.has(type) ? type : 'oil-infrastructure';
         document.querySelectorAll('[data-country-tool]').forEach(button => {
             button.classList.toggle('selected', button.dataset.countryTool === this.countryMapTool);
@@ -2502,6 +2965,10 @@ class Game {
             <span>Training grounds: ${counts['training-ground']}</span>
             <span>Tank factories: ${counts['tank-factory']}</span>
             <span>Tank depots: ${counts['tank-storage']}</span>
+            <span>Refineries: ${counts.refinery}</span>
+            <span>Military academies: ${counts['military-academy']}</span>
+            <span>Rail hubs: ${counts['rail-hub']}</span>
+            <span>Research labs: ${counts['research-lab']}</span>
             <span>Treasury gold: ${Math.floor(this.countryResources.treasuryGold)}</span>
             <span>Oil stockpile: ${Math.floor(this.countryResources.oil)}</span>
             <span>Iron stockpile: ${Math.floor(this.countryResources.iron)}</span>
@@ -2513,13 +2980,18 @@ class Game {
         `;
 
         board.innerHTML = '';
+        board.dataset.countrySide = this.selectedCountrySide;
         this.renderCountryRegionMap(board);
         this.countryMapObjects.forEach(obj => {
             const marker = document.createElement('div');
             marker.className = `country-structure ${obj.type}`;
             marker.style.left = `${obj.x * 100}%`;
             marker.style.top = `${obj.y * 100}%`;
-            marker.textContent = this.getCountryMapLabel(obj.type);
+            marker.innerHTML = `
+                <span class="country-structure-badge">${this.getCountryMapMarkerCode(obj.type)}</span>
+                <span class="country-structure-label">${this.getCountryMapLabel(obj.type)}</span>
+            `;
+            marker.title = this.getCountryMapLabel(obj.type);
             board.appendChild(marker);
         });
 
@@ -2531,7 +3003,11 @@ class Game {
             button.dataset.neighborId = neighbor.id;
             button.style.left = `${neighbor.x * 100}%`;
             button.style.top = `${neighbor.y * 100}%`;
-            button.innerHTML = `${neighbor.name}<small>${this.getNeighborStatusLabel(status)}</small>`;
+            button.innerHTML = `
+                <span class="country-neighbor-name">${neighbor.name}</span>
+                <small>${this.getNeighborResourceLabel(neighbor.id)} | ${this.getNeighborStatusLabel(status)}</small>
+            `;
+            button.title = `${neighbor.name} - ${this.getNeighborResourceLabel(neighbor.id)}`;
             board.appendChild(button);
         });
 
@@ -2917,13 +3393,10 @@ class Game {
         return this.getStrategicMapPoint(0.25, 0.46, width, height);
     }
 
-    getStrategicBattleState(width, height) {
+    getStrategicBattleAxis(width, height) {
         const warTarget = this.getActiveWarTarget();
         if (!warTarget) return null;
 
-        const rawFrontRatio = this.calculateFrontLineX() / this.getBattlefieldWidth();
-        const playerControl = rawFrontRatio;
-        const clampedControl = Math.max(0.08, Math.min(0.92, playerControl));
         const battleRegions = this.getBattleRegionEntries();
         const playerRegion = battleRegions.find(region => region.id === 'home');
         const enemyRegion = battleRegions.find(region => region.id === warTarget.id);
@@ -2936,25 +3409,105 @@ class Game {
         const dx = enemyAnchor.x - playerAnchor.x;
         const dy = enemyAnchor.y - playerAnchor.y;
         const distance = Math.max(1, Math.hypot(dx, dy));
-        const frontPoint = {
-            x: playerAnchor.x + (dx * clampedControl),
-            y: playerAnchor.y + (dy * clampedControl)
-        };
 
         return {
             warTarget,
             playerCountry: this.getSelectedCountry(),
             playerAnchor,
             enemyAnchor,
-            frontPoint,
-            playerControl: clampedControl,
-            enemyControl: 1 - clampedControl,
             dx,
             dy,
             distance,
             normalX: -dy / distance,
             normalY: dx / distance
         };
+    }
+
+    calculateStrategicFrontControl(axisState) {
+        if (!axisState) return 0.5;
+
+        const defaultFriendlyProjection = 0.22;
+        const defaultHostileProjection = 0.78;
+        const friendlySamples = [];
+        const hostileSamples = [];
+        let friendlyTotal = 0;
+        let hostileTotal = 0;
+
+        const collectSamples = (units, side, samples) => {
+            units.forEach(unit => {
+                const projection = Math.max(0, Math.min(
+                    1,
+                    (((unit.x - axisState.playerAnchor.x) * axisState.dx) + ((unit.y - axisState.playerAnchor.y) * axisState.dy))
+                        / (axisState.distance * axisState.distance)
+                ));
+                const weight = this.getStrategicFrontUnitWeight(unit, side, projection);
+                samples.push({ x: projection, weight });
+                if (side === 'player') {
+                    friendlyTotal += weight;
+                } else {
+                    hostileTotal += weight;
+                }
+            });
+        };
+
+        collectSamples(this.getStrategicFriendlyFrontUnits(), 'player', friendlySamples);
+        collectSamples(this.getStrategicHostileFrontUnits(), 'enemy', hostileSamples);
+
+        const friendlyEdge = this.getWeightedFrontEdge(friendlySamples, defaultFriendlyProjection, 0.72);
+        const hostileEdge = this.getWeightedFrontEdge(hostileSamples, defaultHostileProjection, 0.28);
+        const midpoint = (friendlyEdge + hostileEdge) * 0.5;
+        const totalPressure = friendlyTotal + hostileTotal;
+        const pressureBalance = totalPressure > 0
+            ? (friendlyTotal - hostileTotal) / totalPressure
+            : 0;
+        const pressureOffset = pressureBalance * 0.19;
+
+        return Math.max(0.08, Math.min(0.92, midpoint + pressureOffset));
+    }
+
+    getStrategicBattleState(width, height) {
+        const axisState = this.getStrategicBattleAxis(width, height);
+        if (!axisState) return null;
+
+        const clampedControl = this.calculateStrategicFrontControl(axisState);
+        const frontPoint = {
+            x: axisState.playerAnchor.x + (axisState.dx * clampedControl),
+            y: axisState.playerAnchor.y + (axisState.dy * clampedControl)
+        };
+
+        return {
+            warTarget: axisState.warTarget,
+            playerCountry: axisState.playerCountry,
+            playerAnchor: axisState.playerAnchor,
+            enemyAnchor: axisState.enemyAnchor,
+            frontPoint,
+            playerControl: clampedControl,
+            enemyControl: 1 - clampedControl,
+            dx: axisState.dx,
+            dy: axisState.dy,
+            distance: axisState.distance,
+            normalX: axisState.normalX,
+            normalY: axisState.normalY
+        };
+    }
+
+    getEnemyCenterVictoryRadius(battleState) {
+        if (!battleState) return 0;
+        return Math.max(28, Math.min(54, battleState.distance * 0.11));
+    }
+
+    hasPlayerSoldierReachedEnemyCenter() {
+        if (!this.isStrategicBattleView()) return false;
+
+        const battleState = this.getStrategicBattleState(this.getBattlefieldWidth(), this.getBattlefieldHeight());
+        if (!battleState) return false;
+
+        const victoryRadius = this.getEnemyCenterVictoryRadius(battleState);
+        return this.soldiers.some(soldier => (
+            soldier
+            && !soldier.markedForDeletion
+            && Math.hypot(soldier.x - battleState.enemyAnchor.x, soldier.y - battleState.enemyAnchor.y) <= victoryRadius
+        ));
     }
 
     getBattleCorridorHalfWidth(battleState) {
@@ -3073,7 +3626,11 @@ class Game {
             farm: { fill: '#5f7438', stroke: '#d7e6a2', label: 'FARM' },
             'training-ground': { fill: '#62432d', stroke: '#dfb48d', label: 'DRILL' },
             'tank-factory': { fill: '#585d64', stroke: '#d2d5db', label: 'FACT' },
-            'tank-storage': { fill: '#5f5166', stroke: '#d2c4da', label: 'DEPOT' }
+            'tank-storage': { fill: '#5f5166', stroke: '#d2c4da', label: 'DEPOT' },
+            refinery: { fill: '#4b4044', stroke: '#f2bb8d', label: 'REF' },
+            'military-academy': { fill: '#4a5667', stroke: '#bfd1ea', label: 'ACAD' },
+            'rail-hub': { fill: '#5b4d32', stroke: '#e7d39d', label: 'RAIL' },
+            'research-lab': { fill: '#405a66', stroke: '#b9eef2', label: 'LAB' }
         };
         const style = palette[obj.type];
         if (!style) return;
